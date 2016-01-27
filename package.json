@@ -1,0 +1,20 @@
+{
+  "name": "bitcoin-net",
+  "version": "0.0.0",
+  "description": "A convenience wrapper for Bitcoin networking",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "bitcoin",
+    "networking",
+    "p2p",
+    "bitcore"
+  ],
+  "author": "Matt Bell <mappum@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "bitcore-p2p": "^1.1.0"
+  }
+}
