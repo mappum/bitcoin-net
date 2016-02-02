@@ -15,7 +15,7 @@
   "author": "Matt Bell <mappum@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "bitcoin-merkle-tree": "0.0.1",
+    "bitcoin-merkle-proof": "^0.0.0",
     "bitcoin-util": "^2.0.0",
     "bitcore-p2p": "^1.1.0",
     "bitcore-p2p-browserify": "^1.1.0",
