@@ -15,6 +15,14 @@
   "author": "Matt Bell <mappum@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "bitcore-p2p": "^1.1.0"
+    "bitcoin-merkle-tree": "0.0.1",
+    "bitcoin-util": "^2.0.0",
+    "bitcore-p2p": "^1.1.0",
+    "bitcore-p2p-browserify": "^1.1.0",
+    "get-browser-rtc": "^1.0.0",
+    "peerhub": "^0.1.1"
+  },
+  "browser": {
+    "bitcore-p2p": "bitcore-p2p-browserify"
   }
 }
