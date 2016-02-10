@@ -3,5 +3,5 @@ module.exports = {
   Peer: require('./lib/peer.js'),
   PeerGroup: require('./lib/peerGroup.js'),
   TransactionStream: require('./lib/transactionStream.js'),
-  WebPeer: require('./lib/webPeer.js')
+  seeds: require('./lib/seeds.js')
 }
