@@ -19,7 +19,7 @@
     "bitcoin-util": "^2.0.0",
     "bitcore-p2p": "^1.1.0",
     "bitcore-p2p-browserify": "^1.1.0",
-    "get-browser-rtc": "^1.0.0",
+    "get-browser-rtc": "^1.0.2",
     "peerhub": "^0.1.1"
   },
   "browser": {
