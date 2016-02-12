@@ -15,16 +15,12 @@
   "author": "Matt Bell <mappum@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "babel-regenerator-runtime": "^6.5.0",
     "bitcoin-merkle-proof": "^0.0.0",
     "bitcoin-protocol": "^1.0.3",
     "bitcoin-util": "^2.0.0",
     "bitcoinjs-lib": "^2.2.0",
     "debug": "^2.2.0",
-    "get-browser-rtc": "^1.0.0",
-    "peerhub": "^0.1.1",
-    "through2": "^2.0.1",
-    "watt": "^3.2.1"
+    "through2": "^2.0.1"
   },
   "browser": {
     "bitcore-p2p": "bitcore-p2p-browserify"
