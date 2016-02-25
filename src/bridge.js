@@ -1,6 +1,6 @@
 var util = require('util')
-var PeerGroup = require('bitcoin-net').PeerGroup
-var debug = require('debug')('webcoin-bridge')
+var debug = require('debug')('bitcoin-net:bridge')
+var PeerGroup = require('./peerGroup.js')
 
 var Bridge = module.exports = function (params, opts) {
   opts = Object.assign({ connectWeb: false }, opts)
