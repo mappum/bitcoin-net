@@ -15,11 +15,14 @@
   "author": "Matt Bell <mappum@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "async": "^1.5.2",
     "bitcoin-merkle-proof": "^0.0.0",
     "bitcoin-protocol": "^1.0.3",
     "bitcoin-util": "^2.0.0",
     "bitcoinjs-lib": "^2.2.0",
     "debug": "^2.2.0",
+    "get-browser-rtc": "^1.0.2",
+    "peer-exchange": "^0.1.2",
     "through2": "^2.0.1"
   },
   "browser": {
