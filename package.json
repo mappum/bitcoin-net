@@ -26,7 +26,7 @@
     "bitcoinjs-lib": "^2.2.0",
     "debug": "^2.2.0",
     "get-browser-rtc": "^1.0.2",
-    "peer-exchange": "^0.1.2",
+    "peer-exchange": "^0.3.0",
     "through2": "^2.0.1"
   },
   "devDependencies": {
