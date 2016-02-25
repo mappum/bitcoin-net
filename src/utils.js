@@ -5,10 +5,8 @@ function getRandom (array) {
 }
 
 function parseAddress (address) {
-  var parsed = url.parse(address)
-  if (parsed.protocol && parsed.hostname && parsed.port) {
-    return parsed
-  }
+  // if address has a protocol in it, we don't need to add a fake one
+  if ((/^\w+:\/\//).test(address)) return url.parse(address)
   return url.parse('x://' + address)
 }
 
