@@ -1,6 +1,6 @@
 {
   "name": "bitcoin-net",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Bitcoin P2P networking",
   "main": "index.js",
   "scripts": {
