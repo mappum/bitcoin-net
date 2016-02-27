@@ -41,6 +41,10 @@ class PeerGroup extends EventEmitter {
     var wrtc = opts.wrtc || getBrowserRTC()
     this._exchange = exchange(params.id, { wrtc })
     this._exchange.on('error', this._error.bind(this))
+    this._exchange.on('peer', (peer) => {
+      if (!peer.incoming) return
+      this._onConnection(null, peer)
+    })
   }
 
   _error (err) {
@@ -130,7 +134,6 @@ class PeerGroup extends EventEmitter {
 
   // connects to the peer-exchange peers provided by the params
   _connectWebSeeds (cb) {
-    // TODO: don't wait to connect to all,
     async.each(this._params.webSeeds, (peer, cb) => {
       if (typeof peer === 'string') {
         var url = utils.parseAddress(peer)
