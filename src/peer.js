@@ -16,6 +16,8 @@ var transforms = require('./protocolTransforms.js')
 
 var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
 var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
+var BLOOMSERVICE_VERSION = 70011
+var SENDHEADERS_VERSION = 70012
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -47,7 +49,9 @@ class Peer extends EventEmitter {
     super()
 
     this.magic = opts.magic
-    this.protocolVersion = opts.protocolVersion || 70002
+    this.protocolVersion = opts.protocolVersion || 70012
+    this.minimumVersion = opts.minimumVersion || 70000
+    this.requireBloom = opts.requireBloom && true
     this.userAgent = opts.userAgent || `/${pkg.name}:${pkg.version}/`
     if (process.browser) opts.userAgent += navigator.userAgent + '/'
     this.verackTimeout = opts.verackTimeout || 10 * 1000
@@ -57,6 +61,7 @@ class Peer extends EventEmitter {
     this.services = null
     this.socket = null
     this.ready = false
+    this.sendHeaders = false
 
     if (opts.socket) this.connect(opts.socket)
   }
@@ -110,26 +115,37 @@ class Peer extends EventEmitter {
       this._maybeReady()
     })
 
+    this.on('sendheaders', () => this.sendHeaders = true)
+
     this.on('ping', message => this.send('pong', message))
   }
 
   _onVersion (message) {
     this.services = getServices(message.services)
     if (!this.services.NODE_NETWORK) {
-      throw new Error('Node does not provide NODE_NETWORK service')
+      this._error(new Error('Node does not provide NODE_NETWORK service'))
     }
-    // TODO: if version >= 70011, handle NODE_BLOOM service bit (dc if not set)
-    // TODO: if version >= 70012, send sendheaders message
     this.version = message
+    if (message.version < this.minimumVersion) {
+      this._error(new Error(`Peer is using an incompatible protocol version: ` +
+        `required: >= ${this.minimumVersion}, actual: ${message.version}`))
+    }
+    if (this.requireBloom &&
+    message.version >= BLOOMSERVICE_VERSION &&
+    !this.services.NODE_BLOOM) {
+      this._error(new Error('Node does not provide NODE_BLOOM service'))
+    }
     this.send('verack')
     this._maybeReady()
   }
 
   _maybeReady () {
-    if (this.verack && this.version) {
-      this.ready = true
-      this.emit('ready')
+    if (!this.verack || !this.version) return
+    this.ready = true
+    if (this.version.version >= SENDHEADERS_VERSION) {
+      this.send('sendheaders')
     }
+    this.emit('ready')
   }
 
   _onceReady (cb) {
