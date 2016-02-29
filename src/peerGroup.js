@@ -30,6 +30,7 @@ class PeerGroup extends EventEmitter {
     assertParams(params)
     super()
     this._params = params
+    opts = opts || {}
     this._numPeers = opts.numPeers || 8
     this._getTip = opts.getTip
     this.peers = []
