@@ -30,12 +30,12 @@ class PeerGroup extends EventEmitter {
     assertParams(params)
     super()
     this._params = params
-    this._numPeers = opts.numPeers || 10
+    this._numPeers = opts.numPeers || 8
     this._getTip = opts.getTip
     this.peers = []
     this._hardLimit = opts.hardLimit || false
     this.websocketPort = null
-    this._connectWeb = opts.connectWeb && true
+    this._connectWeb = opts.connectWeb != null ? opts.connectWeb : process.browser
     this.connecting = false
 
     var wrtc = opts.wrtc || getBrowserRTC()
@@ -55,7 +55,7 @@ class PeerGroup extends EventEmitter {
   _onConnection (err, socket) {
     if (err) {
       this.emit('connectError', err, null)
-      if (this.connecting) this.connect()
+      if (this.connecting) this._connectPeer()
       return
     }
     var peer = new Peer({
@@ -67,7 +67,7 @@ class PeerGroup extends EventEmitter {
     var onError = (err) => {
       err = err || new Error('Connection error')
       this.emit('connectError', err, peer)
-      if (this.connecting) this.connect()
+      if (this.connecting) this._connectPeer()
     }
     peer.once('error', onError)
     peer.once('disconnect', onError)
@@ -79,7 +79,7 @@ class PeerGroup extends EventEmitter {
   }
 
   // connects to a new peers, via a randomly selected peer discovery method
-  _connectPeer (cb) {
+  _connectPeer () {
     var getPeerArray = []
     if (!process.browser) {
       if (this._params.dnsSeeds && this._params.dnsSeeds.length > 0) {
@@ -96,10 +96,11 @@ class PeerGroup extends EventEmitter {
       getPeerArray.push(this._params.getNewPeer.bind(this._params))
     }
     if (getPeerArray.length === 0) {
-      return cb(new Error('No methods available to get new peers'))
+      return this._onConnection(
+        new Error('No methods available to get new peers'))
     }
     var getPeer = utils.getRandom(getPeerArray)
-    getPeer(cb)
+    getPeer(this._onConnection.bind(this))
   }
 
   // connects to a random TCP peer via a random DNS seed
@@ -158,9 +159,7 @@ class PeerGroup extends EventEmitter {
     // TODO: smarter peer logic (ensure we don't have too many peers from the
     // same seed, or the same IP block)
     var n = this._numPeers - this.peers.length
-    for (var i = 0; i < n; i++) {
-      this._connectPeer(this._onConnection.bind(this))
-    }
+    for (var i = 0; i < n; i++) this._connectPeer()
   }
 
   // sends a message to all peers
@@ -173,6 +172,8 @@ class PeerGroup extends EventEmitter {
 
   // initializes the PeerGroup by creating peer connections
   connect () {
+    this.connecting = true
+
     // first, try to connect to web seeds so we can get web peers
     // once we have a few, start filling peers via any random
     // peer discovery method
