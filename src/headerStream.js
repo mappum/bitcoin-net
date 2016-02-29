@@ -4,7 +4,7 @@ var u = require('bitcoin-util')
 
 var HeaderStream = module.exports = function (peer, opts) {
   if (!peer) throw new Error('"peer" option is required for HeaderStream')
-  Readable.call(this, { objectMode: true })
+  Readable.call(this, { objectMode: true, highWaterMark: 4 })
   opts = opts || {}
   this.peer = peer
   this.locator = opts.locator || []
@@ -28,7 +28,6 @@ HeaderStream.prototype._error = function (err) {
 }
 
 HeaderStream.prototype._read = function () {
-  if (this.getting || this.done) return
   this._getHeaders()
 }
 
@@ -40,12 +39,12 @@ HeaderStream.prototype._end = function () {
 
 HeaderStream.prototype._getHeaders = function () {
   if (this.disconnected || this.getting || this.done) return
+  this.getting = true
   this.peer.send('getheaders', {
     version: this.peer.protocolVersion,
     locator: this.locator,
     hashStop: this.stop || u.nullHash
   })
-  this.getting = true
   // TODO: timeout if we don't get a response
 }
 
