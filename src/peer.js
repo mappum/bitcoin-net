@@ -54,7 +54,7 @@ class Peer extends EventEmitter {
     this.requireBloom = opts.requireBloom && true
     this.userAgent = opts.userAgent || `/${pkg.name}:${pkg.version}/`
     if (process.browser) opts.userAgent += navigator.userAgent + '/'
-    this.verackTimeout = opts.verackTimeout || 10 * 1000
+    this.handshakeTimeout = opts.handshakeTimeout || 10 * 1000
     this.getTip = opts.getTip
     this.relay = opts.relay || false
     this.version = null
@@ -62,11 +62,14 @@ class Peer extends EventEmitter {
     this.socket = null
     this.ready = false
     this.sendHeaders = false
+    this._handshakeTimeout = null
 
     if (opts.socket) this.connect(opts.socket)
   }
 
   send (command, payload) {
+    // TODO?: maybe this should error if we try to write after close?
+    if (!this.socket.writable) return
     this._encoder.write({ command, payload })
   }
 
@@ -75,6 +78,11 @@ class Peer extends EventEmitter {
       throw new Error('Must specify socket duplex stream')
     }
     this.socket = socket
+    this.socket.on('close', () => {
+      this.socket.destroy()
+      this.emit('disconnect')
+    })
+    this.socket.on('error', this._error.bind(this))
 
     this._decoder = transforms.decode()
     var protoDecoder = proto.createDecodeStream({ magic: this.magic })
@@ -86,23 +94,33 @@ class Peer extends EventEmitter {
     var encodeDebug = debugStream(debug.tx)
     this._encoder.pipe(encodeDebug).pipe(protoEncoder).pipe(socket)
 
+    // timeout if handshake doesn't finish fast enough
+    if (this.handshakeTimeout) {
+      this._handshakeTimeout = setTimeout(() => {
+        this._handshakeTimeout = null
+        this._error(new Error('Peer handshake timed out'))
+      }, this.handshakeTimeout)
+      this.once('ready', () => {
+        clearTimeout(this._handshakeTimeout)
+        this._handshakeTimeout = null
+      })
+    }
+
     this._registerListeners()
     this._sendVersion()
   }
 
   disconnect () {
+    if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout)
     this.socket.destroy()
   }
 
   _error (err) {
-    this.disconnect()
     this.emit('error', err)
+    this.disconnect()
   }
 
   _registerListeners () {
-    this.socket.on('close', () => this.emit('disconnect'))
-    this.socket.on('error', this._error.bind(this))
-
     this._decoder.on('data', message => {
       this.emit('message', message)
       this.emit(message.command, message.payload)
@@ -123,17 +141,17 @@ class Peer extends EventEmitter {
   _onVersion (message) {
     this.services = getServices(message.services)
     if (!this.services.NODE_NETWORK) {
-      this._error(new Error('Node does not provide NODE_NETWORK service'))
+      return this._error(new Error('Node does not provide NODE_NETWORK service'))
     }
     this.version = message
     if (message.version < this.minimumVersion) {
-      this._error(new Error(`Peer is using an incompatible protocol version: ` +
+      return this._error(new Error(`Peer is using an incompatible protocol version: ` +
         `required: >= ${this.minimumVersion}, actual: ${message.version}`))
     }
     if (this.requireBloom &&
     message.version >= BLOOMSERVICE_VERSION &&
     !this.services.NODE_BLOOM) {
-      this._error(new Error('Node does not provide NODE_BLOOM service'))
+      return this._error(new Error('Node does not provide NODE_BLOOM service'))
     }
     this.send('verack')
     this._maybeReady()
@@ -154,13 +172,6 @@ class Peer extends EventEmitter {
   }
 
   _sendVersion () {
-    if (this.verackTimeout) {
-      var timeout = setTimeout(() => {
-        this._error(new Error('Peer did not send verack'))
-      }, this.verackTimeout)
-      this.once('verack', () => clearTimeout(timeout))
-    }
-
     this.send('version', {
       version: this.protocolVersion,
       services: SERVICES_SPV,
