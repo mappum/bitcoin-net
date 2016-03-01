@@ -122,10 +122,13 @@ class Peer extends EventEmitter {
   }
 
   _registerListeners () {
-    this._decoder.on('data', message => {
+    this._decoder.on('error', this._error.bind(this))
+    this._decoder.on('data', (message) => {
       this.emit('message', message)
       this.emit(message.command, message.payload)
     })
+
+    this._encoder.on('error', this._error.bind(this))
 
     this.on('version', this._onVersion)
     this.on('verack', () => {
@@ -136,7 +139,7 @@ class Peer extends EventEmitter {
 
     this.on('sendheaders', () => this.sendHeaders = true)
 
-    this.on('ping', message => this.send('pong', message))
+    this.on('ping', (message) => this.send('pong', message))
   }
 
   _onVersion (message) {
