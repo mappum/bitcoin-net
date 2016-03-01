@@ -56,9 +56,7 @@ HeaderStream.prototype._getHeaders = function () {
 HeaderStream.prototype._onHeaders = function (message) {
   this.getting = false
   if (message.length === 0) return this.end()
-  this.locator = message.slice(-6).map((header) => {
-    return header.getHash()
-  })
+  this.locator = [ message[message.length - 1].getHash() ]
   var res = this.push(message)
   if (message.length < 2000) return this.end()
   if (res) this._getHeaders()
