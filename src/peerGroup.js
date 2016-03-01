@@ -51,6 +51,8 @@ class PeerGroup extends EventEmitter {
       if (!peer.incoming) return
       this._onConnection(null, peer)
     })
+
+    this._onMessage = this._onMessage.bind(this)
   }
 
   _error (err) {
@@ -181,6 +183,11 @@ class PeerGroup extends EventEmitter {
     for (var i = 0; i < n; i++) this._connectPeer()
   }
 
+  _onMessage (message) {
+    this.emit('message', message)
+    this.emit(message.command, message.payload)
+  }
+
   // sends a message to all peers
   send (command, payload) {
     this._assertPeers()
@@ -266,9 +273,12 @@ class PeerGroup extends EventEmitter {
       disconnectPeer.disconnect()
     }
 
+    peer.on('message', this._onMessage)
+
     peer.once('disconnect', () => {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
+      peer.removeListener('message', this._onMessage)
       debug(`peer disconnect, peer.length = ${this.peers.length}`)
       if (this.connecting) this._fillPeers()
       this.emit('disconnect', peer)
@@ -291,8 +301,8 @@ class PeerGroup extends EventEmitter {
     return new HeaderStream(this.randomPeer(), opts)
   }
 
-  createBlockStream (opts) {
-    return new BlockStream(this, opts)
+  createBlockStream (chain, opts) {
+    return new BlockStream(this, chain, opts)
   }
 }
 
