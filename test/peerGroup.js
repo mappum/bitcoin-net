@@ -49,12 +49,13 @@ test('connect', (t) => {
     }
     peers.on('peer', onPeer)
     peers.connect()
-    t.ok(peers.connecting, 'peer "connecting" state is now true')
+    t.ok(peers.connecting, 'peers "connecting" state is true')
   })
 
   t.test('disconnect from peers', (t) => {
     var i = 0
     peers.on('disconnect', (peer) => {
+      t.notOk(peers.connecting, 'peers "connecting" state is false')
       i++
       t.ok(peer, 'got disconnected peer')
       t.equal(peers.peers.length, numPeers - i, 'correct number of remaining peers')
@@ -63,7 +64,6 @@ test('connect', (t) => {
       t.end()
     })
     peers.disconnect()
-    t.notOk(peers.connecting, 'peer "connecting" state is now true')
   })
 
   t.end()

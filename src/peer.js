@@ -50,7 +50,7 @@ class Peer extends EventEmitter {
 
     this.magic = opts.magic
     this.protocolVersion = opts.protocolVersion || 70012
-    this.minimumVersion = opts.minimumVersion || 70000
+    this.minimumVersion = opts.minimumVersion || 70001
     this.requireBloom = opts.requireBloom && true
     this.userAgent = opts.userAgent || `/${pkg.name}:${pkg.version}/`
     if (process.browser) opts.userAgent += navigator.userAgent + '/'
@@ -63,6 +63,7 @@ class Peer extends EventEmitter {
     this.ready = false
     this.sendHeaders = false
     this._handshakeTimeout = null
+    this.disconnected = false
 
     if (opts.socket) this.connect(opts.socket)
   }
@@ -78,11 +79,8 @@ class Peer extends EventEmitter {
       throw new Error('Must specify socket duplex stream')
     }
     this.socket = socket
-    this.socket.on('close', () => {
-      this.socket.destroy()
-      this.emit('disconnect')
-    })
-    this.socket.on('error', this._error.bind(this))
+    socket.once('close', this.disconnect.bind(this))
+    socket.on('error', this._error.bind(this))
 
     this._decoder = transforms.decode()
     var protoDecoder = proto.createDecodeStream({ magic: this.magic })
@@ -111,8 +109,11 @@ class Peer extends EventEmitter {
   }
 
   disconnect () {
+    if (this.disconnected) return
+    this.disconnected = true
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout)
     this.socket.destroy()
+    this.emit('disconnect')
   }
 
   _error (err) {

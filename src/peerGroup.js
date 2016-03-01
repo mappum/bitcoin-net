@@ -36,9 +36,12 @@ class PeerGroup extends EventEmitter {
     this.peers = []
     this._hardLimit = opts.hardLimit || false
     this.websocketPort = null
-    this._connectWeb = opts.connectWeb != null ? opts.connectWeb : process.browser
-    this.connectTimeout = opts.connectTimeout || 5 * 1000
-    this.handshakeTimeout = opts.handshakeTimeout || 5 * 1000
+    this._connectWeb = opts.connectWeb != null
+      ? opts.connectWeb : process.browser
+    this.connectTimeout = opts.connectTimeout != null
+      ? opts.connectTimeout : 5 * 1000
+    this.handshakeTimeout = opts.handshakeTimeout != null
+      ? opts.handshakeTimeout : 5 * 1000
     this.connecting = false
 
     var wrtc = opts.wrtc || getBrowserRTC()
@@ -57,6 +60,8 @@ class PeerGroup extends EventEmitter {
   // callback for peer discovery methods
   _onConnection (err, socket) {
     if (err) {
+      if (socket) socket.destroy()
+      debug(`discovery connection error: ${err.message}`)
       this.emit('connectError', err, null)
       if (this.connecting) this._connectPeer()
       return
@@ -70,7 +75,7 @@ class PeerGroup extends EventEmitter {
     })
     var onError = (err) => {
       err = err || new Error('Connection error')
-      peer.removeListener('error', onError)
+      debug(`peer connection error: ${err.message}`)
       peer.removeListener('disconnect', onError)
       this.emit('connectError', err, peer)
       if (this.connecting) this._connectPeer()
@@ -107,19 +112,7 @@ class PeerGroup extends EventEmitter {
     }
     var getPeer = utils.getRandom(getPeerArray)
     debug(`_connectPeer: getPeer = ${getPeer.name}`)
-    if (!this.connectTimeout) return getPeer(this._onConnection.bind(this))
-    var timedOut = false
-    var timeout = setTimeout(() => {
-      timedOut = true
-      debug(`_connectPeer timeout`)
-      this.emit('connectError', new Error('Connection timed out'), null)
-      if (this.connecting) this._connectPeer()
-    }, this.connectTimeout)
-    getPeer((err, socket) => {
-      if (timedOut) return
-      clearTimeout(timeout)
-      this._onConnection(err, socket)
-    })
+    getPeer(this._onConnection.bind(this))
   }
 
   // connects to a random TCP peer via a random DNS seed
@@ -144,13 +137,22 @@ class PeerGroup extends EventEmitter {
 
   // connects to a standard protocol TCP peer
   _connectTCP (host, port, cb) {
-    var socket = net.connect(this._params.defaultPort, host)
-    socket.setTimeout(10 * 1000)
+    debug(`_connectTCP: tcp://${host}:${port}`)
+    var socket = net.connect(port, host)
+    if (this.connectTimeout) {
+      var timeout = setTimeout(() => {
+        socket.destroy()
+        cb(new Error('Connection timed out'))
+      }, this.connectTimeout)
+    }
     socket.once('error', cb)
     socket.once('connect', () => {
+      socket.ref()
       socket.removeListener('error', cb)
+      clearTimeout(timeout)
       cb(null, socket)
     })
+    socket.unref()
   }
 
   // connects to the peer-exchange peers provided by the params
@@ -189,6 +191,7 @@ class PeerGroup extends EventEmitter {
 
   // initializes the PeerGroup by creating peer connections
   connect () {
+    debug('connect called')
     this.connecting = true
 
     // first, try to connect to web seeds so we can get web peers
@@ -216,8 +219,10 @@ class PeerGroup extends EventEmitter {
 
   // disconnect from all peers
   disconnect () {
+    debug(`disconnect called: peers.length = ${this.peers.length}`)
     this.connecting = false
-    for (var peer of this.peers) peer.disconnect()
+    var peers = this.peers.slice(0)
+    for (var peer of peers) peer.disconnect()
   }
 
   // accept incoming connections through websocket and webrtc (if supported)
@@ -253,10 +258,8 @@ class PeerGroup extends EventEmitter {
 
   // manually adds a Peer
   addPeer (peer) {
-    if (!peer.ready) {
-      peer._onceReady(() => this.addPeer(peer))
-    }
     this.peers.push(peer)
+    debug(`add peer: peers.length = ${this.peers.length}`)
 
     if (this._hardLimit && this.peers.length > this._numPeers) {
       var disconnectPeer = this.peers.shift()
@@ -266,6 +269,7 @@ class PeerGroup extends EventEmitter {
     peer.once('disconnect', () => {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
+      debug(`peer disconnect, peer.length = ${this.peers.length}`)
       if (this.connecting) this._fillPeers()
       this.emit('disconnect', peer)
     })
