@@ -4,14 +4,14 @@ var u = require('bitcoin-util')
 var merkleProof = require('bitcoin-merkle-proof')
 var Peer = require('./peer.js')
 
-var BlockStream = module.exports = function (opts) {
-  if (!opts.peers) throw new Error('"peers" option is required for BlockStream')
-  if (!opts.chain) throw new Error('"chain" option is required for BlockStream')
+var BlockStream = module.exports = function (peers, chain, opts) {
+  if (!peers) throw new Error('"peers" argument is required for BlockStream')
+  if (!chain) throw new Error('"chain" argument is required for BlockStream')
   Readable.call(this, { objectMode: true })
 
   opts = opts || {}
-  this.peers = opts.peers
-  this.chain = opts.chain
+  this.peers = peers
+  this.chain = chain
   this.from = opts.from || 0
   this.to = opts.to || null
   this.bufferSize = opts.bufferSize || 128
@@ -43,17 +43,18 @@ BlockStream.prototype._read = function () {
 // FIXME: maybe this should happen outside of BlockStream?
 BlockStream.prototype._next = function () {
   var self = this
-  if (!this.requestCursor) return
+  if (this.requestCursor == null) return
+  // TODO: handle different types of requestCursors? (e.g. height, timestamp)
   this.chain.getBlock(this.requestCursor, function (err, block) {
     if (err) return self._error(err)
     if (!self._from) self._from = block
-    var hash = u.toHash(block.header.hash)
+    var hash = block.header.getHash()
     if (block.height > self._from.height) {
       if (self.requestHeight == null) {
         self.requestHeight = block.height
       }
       self.requestQueue.push(hash)
-      self._getData(block)
+      self._getData(hash)
     }
     if (!block.next) {
       return self.requestQueue.push(null)
@@ -72,37 +73,37 @@ BlockStream.prototype._getPeer = function () {
 
 // TODO: use a callback, rather than going through the on*Block methods
 // TODO: add a timeout
-BlockStream.prototype._getData = function (block) {
+BlockStream.prototype._getData = function (hash) {
   var inv = {
     type: this.filtered ? 3 : 2, // MSG_FILTERED_BLOCK, MSG_BLOCK
-    hash: u.toHash(block.header.hash)
+    hash
   }
   this._getPeer().send('getdata', [ inv ])
 }
 
 BlockStream.prototype._requestIndex = function (hash) {
   for (var i = 0; i < this.requestQueue.length; i++) {
-    if (this.requestQueue[i] === null) return false
+    if (this.requestQueue[i] == null) continue
     if (hash.compare(this.requestQueue[i]) === 0) return i
   }
   return false
 }
 
 BlockStream.prototype._onBlock = function (message) {
-  var hash = u.toHash(message.block.header.hash)
+  var hash = message.header.getHash()
   var reqIndex = this._requestIndex(hash)
   if (reqIndex === false) return
   this._push(reqIndex, {
     height: this.requestHeight + reqIndex,
-    header: message.block.header,
-    block: message.block
+    header: message.header,
+    block: message
   })
 }
 
 BlockStream.prototype._onMerkleBlock = function (message) {
   var self = this
 
-  var hash = u.toHash(message.merkleBlock.header.hash)
+  var hash = message.merkleBlock.header.getHash()
   if (this._requestIndex(hash) === false) return
 
   var txids = merkleProof.verify(message.merkleBlock)
