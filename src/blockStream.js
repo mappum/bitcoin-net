@@ -12,6 +12,7 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   opts = opts || {}
   this.peers = peers
   this.chain = chain
+  // TODO: handle different types for 'from' (e.g. height, timestamp)
   this.from = opts.from || 0
   this.to = opts.to || null
   this.bufferSize = opts.bufferSize || 128
@@ -23,11 +24,6 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   this.pause = false
 
   this.filtered = !!this.peers.filter
-  if (!this.filtered) {
-    this.peers.on('block', this._onBlock.bind(this))
-  } else {
-    this.peers.on('merkleblock', this._onMerkleBlock.bind(this))
-  }
 }
 util.inherits(BlockStream, Readable)
 
@@ -44,7 +40,6 @@ BlockStream.prototype._read = function () {
 BlockStream.prototype._next = function () {
   var self = this
   if (this.requestCursor == null) return
-  // TODO: handle different types of requestCursors? (e.g. height, timestamp)
   this.chain.getBlock(this.requestCursor, function (err, block) {
     if (err) return self._error(err)
     if (!self._from) self._from = block
@@ -71,14 +66,12 @@ BlockStream.prototype._getPeer = function () {
   return this.peers.randomPeer()
 }
 
-// TODO: use a callback, rather than going through the on*Block methods
-// TODO: add a timeout
 BlockStream.prototype._getData = function (hash) {
-  var inv = {
-    type: this.filtered ? 3 : 2, // MSG_FILTERED_BLOCK, MSG_BLOCK
-    hash
-  }
-  this._getPeer().send('getdata', [ inv ])
+  this._getPeer().getBlocks([ hash ], (err, blocks) => {
+    if (err) return this._error(err)
+    var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
+    onBlock(blocks[0])
+  })
 }
 
 BlockStream.prototype._requestIndex = function (hash) {
@@ -108,7 +101,7 @@ BlockStream.prototype._onMerkleBlock = function (message) {
 
   var txids = merkleProof.verify(message.merkleBlock)
   if (!txids.length) return done(null, [])
-  this.peers.getTransactions(txids, done)
+  this.peers.getTransactions(hash, txids, done)
 
   function done (err, transactions) {
     if (err) return self._error(err)
@@ -133,4 +126,5 @@ BlockStream.prototype._push = function (i, data) {
     if (!more) this.pause = true
   }
   if (this.requestQueue[0] === null) this.push(null)
+  console.log('stream end')
 }
