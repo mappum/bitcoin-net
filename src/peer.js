@@ -8,7 +8,7 @@ var through = require('through2').obj
 var crypto = require('crypto')
 var EventEmitter = require('events')
 var proto = require('bitcoin-protocol')
-var u = require('bitcoin-util')
+var INV = proto.constants.inventory
 var pkg = require('../package.json')
 var HeaderStream = require('./headerStream.js')
 var BlockStream = require('./blockStream.js')
@@ -64,6 +64,8 @@ class Peer extends EventEmitter {
     this.sendHeaders = false
     this._handshakeTimeout = null
     this.disconnected = false
+
+    this.setMaxListeners(200)
 
     if (opts.socket) this.connect(opts.socket)
   }
@@ -122,6 +124,7 @@ class Peer extends EventEmitter {
   }
 
   _registerListeners () {
+    this._decoder.on('error', (err) => console.log('DECODER ERROR: ', err))
     this._decoder.on('error', this._error.bind(this))
     this._decoder.on('data', (message) => {
       this.emit('message', message)
@@ -206,26 +209,53 @@ class Peer extends EventEmitter {
   }
 
   // TODO: add a timeout
-  getTransactions (txids, cb) {
-    var inventory = txids.map(txid => ({
-      type: 1, // MSG_TX
-      hash: u.toHash(txid)
+  getBlocks (hashes, filtered, cb) {
+    if (typeof filtered === 'function') {
+      cb = filtered
+      filtered = false
+    }
+    var inventory = hashes.map((hash) => ({
+      type: filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+      hash
     }))
-    var txidIndex = {}
-    txids.forEach((txid, i) => txidIndex[txid] = i)
-    var remaining = txids.length
-    var output = new Array(txids.length)
-    var onTx = (transaction) => {
-      var i = txidIndex[transaction.getId()]
+
+    var blockIndex = {}
+    hashes.forEach((block, i) => blockIndex[block] = i)
+    var remaining = hashes.length
+    var output = new Array(hashes.length)
+
+    // TODO: listen for blocks by hash
+    var onBlock = (block) => {
+      var blockId = block.header.getId()
+      var i = blockIndex[blockId]
       if (i == null) return
-      output[i] = transaction
+      delete blockIndex[blockId]
+      output[i] = block
       remaining--
       if (remaining === 0) {
-        this.removeListener('tx', onTx)
+        this.removeListener('block', onBlock)
         cb(null, output)
       }
     }
-    this.on('tx', onTx)
-    this.send('getData', inventory)
+    this.on('block', onBlock)
+    this.send('getdata', inventory)
+  }
+
+  getTransactions (blockHash, txids, cb) {
+    var txIndex = {}
+    txids.forEach((txid, i) => txIndex[txid] = i)
+    var output = new Array(txids.length)
+
+    this.getBlocks([ blockHash ], (err, blocks) => {
+      if (err) return cb(err)
+      for (var tx of blocks[0].transactions) {
+        var id = tx.getId()
+        var i = txIndex[id]
+        if (i == null) return
+        delete txIndex[id]
+        output[i] = tx
+        cb(null, output)
+      }
+    })
   }
 }
