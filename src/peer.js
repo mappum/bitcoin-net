@@ -209,48 +209,59 @@ class Peer extends EventEmitter {
     return new BlockStream(this, opts)
   }
 
-  // TODO: add a timeout
-  getBlocks (hashes, filtered, cb) {
-    if (typeof filtered === 'function') {
-      cb = filtered
-      filtered = false
+  getBlocks (hashes, opts, cb) {
+    if (typeof opts === 'function') {
+      cb = opts
+      opts = {}
     }
+    if (opts.timeout == null) opts.timeout = 5 * 1000
+    // TODO: base default timeout on ping time
+
     var inventory = hashes.map((hash) => ({
-      type: filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
       hash
     }))
 
     var blockIndex = {}
-    hashes.forEach((block, i) => blockIndex[block] = i)
+    hashes.forEach((hash, i) => blockIndex[hash.toString('base64')] = i)
     var remaining = hashes.length
     var output = new Array(hashes.length)
 
     // TODO: listen for blocks by hash
+    var timeout
     var onBlock = (block) => {
-      var blockId = block.header.getId()
-      var i = blockIndex[blockId]
+      var hash = block.header.getHash().toString('base64')
+      var i = blockIndex[hash]
       if (i == null) return
-      delete blockIndex[blockId]
+      delete blockIndex[hash]
       output[i] = block
       remaining--
       if (remaining === 0) {
+        if (timeout != null) clearTimeout(timeout)
         this.removeListener('block', onBlock)
         cb(null, output)
       }
     }
     this.on('block', onBlock)
     this.send('getdata', inventory)
+    if (!opts.timeout) return
+    timeout = setTimeout(() => {
+      this.removeListener('block', onBlock)
+      var error = new Error('Request timed out')
+      error.timeout = true
+      cb(error)
+    }, opts.timeout)
   }
 
   getTransactions (blockHash, txids, cb) {
     var txIndex = {}
-    txids.forEach((txid, i) => txIndex[txid] = i)
+    txids.forEach((txid, i) => txIndex[txid.toString('base64')] = i)
     var output = new Array(txids.length)
 
     this.getBlocks([ blockHash ], (err, blocks) => {
       if (err) return cb(err)
       for (var tx of blocks[0].transactions) {
-        var id = tx.getId()
+        var id = tx.getHash().toString('base64')
         var i = txIndex[id]
         if (i == null) return
         delete txIndex[id]
