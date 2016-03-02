@@ -304,6 +304,39 @@ class PeerGroup extends EventEmitter {
   createBlockStream (chain, opts) {
     return new BlockStream(this, chain, opts)
   }
+
+  getBlocks (hashes, opts, cb) {
+    this._request('getBlocks', hashes, opts, cb)
+  }
+
+  getTransactions (blockHash, txids, cb) {
+    this._request('getTransactions', blockHash, txids, cb)
+  }
+
+  // calls a method on a random peer,
+  // and retries on another peer if it times out
+  _request (method) {
+    var cb
+    var args
+    for (var i = 1; i < arguments.length - 1; i++) {
+      cb = arguments[arguments.length - i]
+      if (!cb) continue
+      args = Array.prototype.slice.call(arguments, 1, arguments.length - i)
+      break
+    }
+    args.push((err, res) => {
+      if (err && err.timeout) {
+        // TODO?: maybe disconnect peer if it times out
+        // if request times out, retry with another random peer
+        this.emit('requestError', err)
+        var allArgs = Array.prototype.slice.call(arguments, 0)
+        return this._request.apply(this, allArgs)
+      }
+      cb(err, res)
+    })
+    var peer = this.randomPeer()
+    peer[method].apply(peer, args)
+  }
 }
 
 /*
