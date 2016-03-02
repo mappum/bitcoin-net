@@ -104,6 +104,22 @@ test('peer methods', (t) => {
     t.end()
   })
 
+  t.test('getBlocks', (t) => {
+    var hash = new Buffer('6a4690e6ba50e286b8c63c826399a6ac73be3f479f17406cdf90468700000000', 'hex')
+    pg.getBlocks([ hash ], (err, res) => {
+      t.pass('callback called')
+      t.error(err, 'no error')
+      t.ok(Array.isArray(res), 'result is array')
+      t.equal(res.length, 1, 'result is correct length')
+      t.ok(res[0].header instanceof Block, 'result has header of type Block')
+      t.equal(res[0].header.nonce, 1766761990, 'header has correct nonce')
+      t.ok(Array.isArray(res[0].transactions), 'result has transactions array')
+      t.equal(res[0].transactions.length, 1, 'transactions array is correct length')
+      t.equal(res[0].transactions[0].getId(), '3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868', 'transaction has correct hash')
+      t.end()
+    })
+  })
+
   var chain
   t.test('setup blockchain', (t) => {
     var db = levelup('chain', { db: memdown })
@@ -142,12 +158,10 @@ test('peer methods', (t) => {
       var expected = expectedHeaders.shift()
       t.ok(data[0].getHash().compare(expected.first) === 0, 'got correct first header')
       t.ok(data[1999].getHash().compare(expected.last) === 0, 'got correct last header')
+      if (expectedHeaders.length === 0) stream.end()
       chain.addHeaders(data, (err) => {
         t.error(err, 'headers add to blockchain')
-        if (expectedHeaders.length === 0) {
-          stream.end()
-          t.end()
-        }
+        if (expectedHeaders.length === 0) t.end()
       })
     })
   })
@@ -164,6 +178,7 @@ test('peer methods', (t) => {
   //     t.ok(data.header.prevHash.compare(lastHash) === 0, 'block connects to previous hash')
   //     lastHeight++
   //     lastHash = data.header.getHash()
+  //     if (lastHeight >= 100) stream.end()
   //   })
   //   stream.on('end', () => t.end())
   // })
