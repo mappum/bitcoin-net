@@ -86,11 +86,13 @@ class Peer extends EventEmitter {
 
     this._decoder = transforms.decode()
     var protoDecoder = proto.createDecodeStream({ magic: this.magic })
+    protoDecoder.on('error', this._error.bind(this))
     var decodeDebug = debugStream(debug.rx)
     socket.pipe(protoDecoder).pipe(this._decoder).pipe(decodeDebug)
 
     this._encoder = transforms.encode()
     var protoEncoder = proto.createEncodeStream({ magic: this.magic })
+    protoEncoder.on('error', this._error.bind(this))
     var encodeDebug = debugStream(debug.tx)
     this._encoder.pipe(encodeDebug).pipe(protoEncoder).pipe(socket)
 
@@ -124,7 +126,6 @@ class Peer extends EventEmitter {
   }
 
   _registerListeners () {
-    this._decoder.on('error', (err) => console.log('DECODER ERROR: ', err))
     this._decoder.on('error', this._error.bind(this))
     this._decoder.on('data', (message) => {
       this.emit('message', message)
