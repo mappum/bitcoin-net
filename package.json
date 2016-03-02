@@ -30,7 +30,7 @@
     "through2": "^2.0.1"
   },
   "devDependencies": {
-    "babel-cli": "^6.5.1",
+    "babel-cli": "^6.6.0",
     "babel-preset-es2015": "^6.5.0",
     "blockchain-spv": "^1.0.3",
     "levelup": "^1.3.1",
