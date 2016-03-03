@@ -2,7 +2,6 @@ var Readable = require('stream').Readable
 var util = require('util')
 var u = require('bitcoin-util')
 var merkleProof = require('bitcoin-merkle-proof')
-var Peer = require('./peer.js')
 
 var BlockStream = module.exports = function (peers, chain, opts) {
   if (!peers) throw new Error('"peers" argument is required for BlockStream')
@@ -22,6 +21,7 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   this.requestHeight = null
   this.buffer = []
   this.pause = false
+  this.ended = false
 
   this.filtered = !!this.peers.filter
 }
@@ -40,6 +40,8 @@ BlockStream.prototype._read = function () {
 BlockStream.prototype._next = function () {
   var self = this
   if (this.requestCursor == null) return
+  if (self.pause) return
+  if (this.ended) return
   this.chain.getBlock(this.requestCursor, function (err, block) {
     if (err) return self._error(err)
     if (!self._from) self._from = block
@@ -55,22 +57,19 @@ BlockStream.prototype._next = function () {
       return self.requestQueue.push(null)
     }
     self.requestCursor = u.toHash(block.next)
-    if (self.pause || self.requestQueue.length >= self.bufferSize) return
+    if (self.pause) return
+    if (self.requestQueue.length >= self.bufferSize) return
     self._next()
   })
   this.requestCursor = null
 }
 
-BlockStream.prototype._getPeer = function () {
-  if (this.peers instanceof Peer) return this.peers
-  return this.peers.randomPeer()
-}
-
 BlockStream.prototype._getData = function (hash) {
-  this._getPeer().getBlocks([ hash ], (err, blocks) => {
+  if (this.ended) return
+  this.peers.getBlocks([ hash ], (err, blocks) => {
     if (err) return this._error(err)
     var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
-    onBlock(blocks[0])
+    onBlock.call(this, blocks[0])
   })
 }
 
@@ -83,6 +82,7 @@ BlockStream.prototype._requestIndex = function (hash) {
 }
 
 BlockStream.prototype._onBlock = function (message) {
+  if (this.ended) return
   var hash = message.header.getHash()
   var reqIndex = this._requestIndex(hash)
   if (reqIndex === false) return
@@ -94,6 +94,7 @@ BlockStream.prototype._onBlock = function (message) {
 }
 
 BlockStream.prototype._onMerkleBlock = function (message) {
+  if (this.ended) return
   var self = this
 
   var hash = message.merkleBlock.header.getHash()
@@ -117,14 +118,23 @@ BlockStream.prototype._onMerkleBlock = function (message) {
 }
 
 BlockStream.prototype._push = function (i, data) {
+  if (this.ended) return
   this.buffer[i] = data
   while (this.buffer[0]) {
+    if (this.ended) return
+    // consumers might end the stream after this.push(),
+    // so we should watch for that and stop pushing data if it happens
     this.requestHeight++
     this.requestQueue.shift()
     var head = this.buffer.shift()
     var more = this.push(head)
     if (!more) this.pause = true
   }
-  if (this.requestQueue[0] === null) this.push(null)
-  console.log('stream end')
+  if (this.requestQueue[0] === null) this.end()
+}
+
+BlockStream.prototype.end = function () {
+  this.ended = true
+  this.requestCursor = null
+  this.push(null)
 }
