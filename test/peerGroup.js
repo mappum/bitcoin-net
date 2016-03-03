@@ -137,8 +137,11 @@ test('peer methods', { timeout: 120 * 1000 }, (t) => {
     }, () => t.end()))
   })
 
-  t.test('createBlockStream', (t) => {
-    var stream = pg.createBlockStream(chain, { from: chain.genesis.hash })
+  t.test('createBlockStream', { timeout: 60 * 1000 }, (t) => {
+    var stream = pg.createBlockStream(chain, {
+      from: chain.genesis.hash,
+      bufferSize: 50
+    })
     t.ok(stream instanceof BlockStream, 'got BlockStream')
     var lastHeight = 0
     var lastHash = chain.genesis.hash
@@ -149,7 +152,7 @@ test('peer methods', { timeout: 120 * 1000 }, (t) => {
       t.ok(data.header.prevHash.compare(lastHash) === 0, 'block connects to previous hash')
       lastHeight++
       lastHash = data.header.getHash()
-      if (lastHeight >= 150) stream.end()
+      if (lastHeight >= 100) stream.end()
     })
     stream.on('end', () => t.end())
   })
