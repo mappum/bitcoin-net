@@ -37,7 +37,7 @@ test('PeerGroup constructor', (t) => {
   t.end()
 })
 
-test('connect, close', (t) => {
+test('connect, close', { timeout: 60 * 1000 }, (t) => {
   // NOTE: this test connects to real nodes
   var numPeers = 8
   var peers = new PeerGroup(params.net, { numPeers })
@@ -76,11 +76,11 @@ test('connect, close', (t) => {
   t.end()
 })
 
-test('peer methods', (t) => {
+test('peer methods', { timeout: 120 * 1000 }, (t) => {
   var numPeers = 4
   var pg = new PeerGroup(params.net, { numPeers })
 
-  t.test('connect', (t) => {
+  t.test('connect', { timeout: 60 * 1000 }, (t) => {
     var onPeer = () => {
       if (pg.peers.length >= numPeers) {
         pg.removeListener('peer', onPeer)
@@ -129,7 +129,7 @@ test('peer methods', (t) => {
     chain.once('ready', () => t.end())
   })
 
-  t.test('createHeaderStream', (t) => {
+  t.test('createHeaderStream', { timeout: 60 * 1000 }, (t) => {
     var expectedHeaders = [
       {
         first: u.toHash('00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048'),
@@ -160,6 +160,7 @@ test('peer methods', (t) => {
       t.ok(data[1999].getHash().compare(expected.last) === 0, 'got correct last header')
       if (expectedHeaders.length === 0) stream.end()
       chain.addHeaders(data, (err) => {
+        if (err) console.error('error adding headers to chain: ' + err)
         t.error(err, 'headers add to blockchain')
         if (expectedHeaders.length === 0) t.end()
       })
