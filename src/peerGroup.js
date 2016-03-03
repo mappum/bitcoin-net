@@ -87,6 +87,7 @@ class PeerGroup extends EventEmitter {
     peer.once('error', onError)
     peer.once('disconnect', onError)
     peer.once('ready', () => {
+      if (this.closed) return socket.destroy()
       peer.removeListener('error', onError)
       peer.removeListener('disconnect', onError)
       this.addPeer(peer)
