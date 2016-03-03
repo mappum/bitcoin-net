@@ -137,22 +137,22 @@ test('peer methods', { timeout: 120 * 1000 }, (t) => {
     }, () => t.end()))
   })
 
-  // t.test('createBlockStream', (t) => {
-  //   var stream = pg.createBlockStream(chain, { from: chain.genesis.hash })
-  //   t.ok(stream instanceof BlockStream, 'got BlockStream')
-  //   var lastHeight = 0
-  //   var lastHash = chain.genesis.hash
-  //   stream.on('data', (data) => {
-  //     t.equal(typeof data.height, 'number', 'data contains height')
-  //     t.ok(data.header instanceof Block, 'data contains header (bitcoinjs Block)')
-  //     t.equal(data.height, lastHeight + 1, 'blocks ordered by height')
-  //     t.ok(data.header.prevHash.compare(lastHash) === 0, 'block connects to previous hash')
-  //     lastHeight++
-  //     lastHash = data.header.getHash()
-  //     if (lastHeight >= 100) stream.end()
-  //   })
-  //   stream.on('end', () => t.end())
-  // })
+  t.test('createBlockStream', (t) => {
+    var stream = pg.createBlockStream(chain, { from: chain.genesis.hash })
+    t.ok(stream instanceof BlockStream, 'got BlockStream')
+    var lastHeight = 0
+    var lastHash = chain.genesis.hash
+    stream.on('data', (data) => {
+      t.equal(typeof data.height, 'number', 'data contains height')
+      t.ok(data.header instanceof Block, 'data contains header (bitcoinjs Block)')
+      t.equal(data.height, lastHeight + 1, 'blocks ordered by height')
+      t.ok(data.header.prevHash.compare(lastHash) === 0, 'block connects to previous hash')
+      lastHeight++
+      lastHash = data.header.getHash()
+      if (lastHeight >= 150) stream.end()
+    })
+    stream.on('end', () => t.end())
+  })
 
   t.end()
 })
