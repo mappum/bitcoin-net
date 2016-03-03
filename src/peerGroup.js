@@ -337,6 +337,7 @@ class PeerGroup extends EventEmitter {
     }
     var peer = this.randomPeer()
     args.push((err, res) => {
+      if (this.closed) return
       if (err && err.timeout) {
         // if request times out, disconnect peer and retry with another random peer
         peer.disconnect()
