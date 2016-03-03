@@ -9,6 +9,7 @@ var crypto = require('crypto')
 var EventEmitter = require('events')
 var proto = require('bitcoin-protocol')
 var INV = proto.constants.inventory
+var u = require('bitcoin-util')
 var pkg = require('../package.json')
 var HeaderStream = require('./headerStream.js')
 var BlockStream = require('./blockStream.js')
@@ -201,14 +202,6 @@ class Peer extends EventEmitter {
     })
   }
 
-  createHeaderStream (opts) {
-    return new HeaderStream(this, opts)
-  }
-
-  createBlockStream (opts) {
-    return new BlockStream(this, opts)
-  }
-
   getBlocks (hashes, opts, cb) {
     if (typeof opts === 'function') {
       cb = opts
@@ -269,5 +262,39 @@ class Peer extends EventEmitter {
         cb(null, output)
       }
     })
+  }
+
+  getHeaders (locator, opts, cb) {
+    if (typeof opts === 'function') {
+      cb = opts
+      opts = {}
+    }
+    opts.stop = opts.stop || u.nullHash
+    opts.timeout = opts.timeout != null ? opts.timeout : 5 * 1000
+    var timeout
+    var onHeaders = (headers) => {
+      // check to see if this headers message connects to one of the locator hashes
+      // (it could be a message from another getHeaders call, which we should ignore)
+      for (var locIndex = 0; locIndex < locator.length; locIndex++) {
+        if (locator[locIndex].compare(headers[0].prevHash) === 0) break
+      }
+      if (locIndex === locator.length) return
+      this.removeListener('headers', onHeaders)
+      if (timeout) clearTimeout(timeout)
+      cb(null, headers)
+    }
+    this.on('headers', onHeaders)
+    this.send('getheaders', {
+      version: this.protocolVersion,
+      locator,
+      hashStop: opts.stop
+    })
+    if (!opts.timeout) return
+    timeout = setTimeout(() => {
+      this.removeListener('headers', onHeaders)
+      var error = new Error('Request timed out')
+      error.timeout = true
+      cb(error)
+    }, opts.timeout)
   }
 }
