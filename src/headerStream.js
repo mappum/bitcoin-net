@@ -41,11 +41,15 @@ HeaderStream.prototype._getHeaders = function () {
 
 HeaderStream.prototype._onHeaders = function (err, headers, peer) {
   if (err) return this._error(err)
-  this.getting = false
   if (headers.length === 0) return this.end()
-  this.locator = [ headers[headers.length - 1].getHash() ]
   headers.peer = peer
   var res = this.push(headers)
   if (headers.length < 2000) return this.end()
+  if (this.stop &&
+  headers[headers.length - 1].getHash().compare(this.stop) === 0) {
+    return this.end()
+  }
+  this.locator = [ headers[headers.length - 1].getHash() ]
+  this.getting = false
   if (res) this._getHeaders()
 }
