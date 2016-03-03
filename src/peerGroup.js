@@ -94,8 +94,9 @@ class PeerGroup extends EventEmitter {
     })
   }
 
-  // connects to a new peers, via a randomly selected peer discovery method
+  // connects to a new peer, via a randomly selected peer discovery method
   _connectPeer () {
+    if (this.closed) return
     var getPeerArray = []
     if (!process.browser) {
       if (this._params.dnsSeeds && this._params.dnsSeeds.length > 0) {
@@ -340,6 +341,7 @@ class PeerGroup extends EventEmitter {
       if (this.closed) return
       if (err && err.timeout) {
         // if request times out, disconnect peer and retry with another random peer
+        debug(`peer request "${method}" timed out, disconnecting`)
         peer.disconnect()
         this.emit('requestError', err)
         var allArgs = Array.prototype.slice.call(arguments, 0)
