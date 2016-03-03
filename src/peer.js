@@ -21,7 +21,7 @@ var SENDHEADERS_VERSION = 70012
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
 var INITIAL_PING_N = 8 // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 200 // wait this many ms between initial pings
-var MIN_TIMEOUT = 300 // lower bound for timeouts (in case latency is crazy low)
+var MIN_TIMEOUT = 500 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -231,7 +231,7 @@ class Peer extends EventEmitter {
   }
 
   _getTimeout () {
-    return Math.min(this.latency * 2, MIN_TIMEOUT)
+    return Math.max(this.latency * 2, MIN_TIMEOUT)
   }
 
   getBlocks (hashes, opts, cb) {
@@ -271,6 +271,7 @@ class Peer extends EventEmitter {
     if (!opts.timeout) return
     timeout = setTimeout(() => {
       this.removeListener('block', onBlock)
+      debug(`getBlocks timed out: ${opts.timeout} ms`)
       var error = new Error('Request timed out')
       error.timeout = true
       cb(error)
@@ -322,6 +323,7 @@ class Peer extends EventEmitter {
     })
     if (!opts.timeout) return
     timeout = setTimeout(() => {
+      debug(`getHeaders timed out: ${opts.timeout} ms`)
       this.removeListener('headers', onHeaders)
       var error = new Error('Request timed out')
       error.timeout = true
