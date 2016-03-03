@@ -43,6 +43,7 @@ class PeerGroup extends EventEmitter {
     this.handshakeTimeout = opts.handshakeTimeout != null
       ? opts.handshakeTimeout : 5 * 1000
     this.connecting = false
+    this.closed = false
 
     var wrtc = opts.wrtc || getBrowserRTC()
     this._exchange = exchange(params.id, { wrtc })
@@ -68,6 +69,7 @@ class PeerGroup extends EventEmitter {
       if (this.connecting) this._connectPeer()
       return
     }
+    if (this.closed) return socket.destroy()
     var peer = new Peer({
       magic: this._params.magic,
       protocolVersion: this._params.protocolVersion,
@@ -176,6 +178,8 @@ class PeerGroup extends EventEmitter {
   }
 
   _fillPeers () {
+    if (this.closed) return
+
     // TODO: smarter peer logic (ensure we don't have too many peers from the
     // same seed, or the same IP block)
     var n = this._numPeers - this.peers.length
@@ -224,12 +228,13 @@ class PeerGroup extends EventEmitter {
     this._fillPeers()
   }
 
-  // disconnect from all peers
-  disconnect () {
-    debug(`disconnect called: peers.length = ${this.peers.length}`)
-    this.connecting = false
+  // disconnect from all peers and stop accepting connections
+  close () {
+    debug(`close called: peers.length = ${this.peers.length}`)
+    this.closed = true
     var peers = this.peers.slice(0)
     for (var peer of peers) peer.disconnect()
+    // TODO: unaccept all
   }
 
   // accept incoming connections through websocket and webrtc (if supported)
@@ -265,6 +270,8 @@ class PeerGroup extends EventEmitter {
 
   // manually adds a Peer
   addPeer (peer) {
+    if (this.closed) throw new Error('Cannot add peers, PeerGroup is closed')
+
     this.peers.push(peer)
     debug(`add peer: peers.length = ${this.peers.length}`)
 
@@ -297,8 +304,7 @@ class PeerGroup extends EventEmitter {
   }
 
   createHeaderStream (opts) {
-    // TODO: handle peer disconnect
-    return new HeaderStream(this.randomPeer(), opts)
+    return new HeaderStream(this, opts)
   }
 
   createBlockStream (chain, opts) {
@@ -311,6 +317,10 @@ class PeerGroup extends EventEmitter {
 
   getTransactions (blockHash, txids, cb) {
     this._request('getTransactions', blockHash, txids, cb)
+  }
+
+  getHeaders (locator, opts, cb) {
+    this._request('getHeaders', locator, opts, cb)
   }
 
   // calls a method on a random peer,
