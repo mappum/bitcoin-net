@@ -334,6 +334,7 @@ class PeerGroup extends EventEmitter {
       args = Array.prototype.slice.call(arguments, 1, arguments.length - i)
       break
     }
+    var peer = this.randomPeer()
     args.push((err, res) => {
       if (err && err.timeout) {
         // TODO?: maybe disconnect peer if it times out
@@ -342,9 +343,8 @@ class PeerGroup extends EventEmitter {
         var allArgs = Array.prototype.slice.call(arguments, 0)
         return this._request.apply(this, allArgs)
       }
-      cb(err, res)
+      cb(err, res, peer)
     })
-    var peer = this.randomPeer()
     peer[method].apply(peer, args)
   }
 }

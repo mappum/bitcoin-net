@@ -39,11 +39,12 @@ HeaderStream.prototype._getHeaders = function () {
   }, this._onHeaders)
 }
 
-HeaderStream.prototype._onHeaders = function (err, headers) {
+HeaderStream.prototype._onHeaders = function (err, headers, peer) {
   if (err) return this._error(err)
   this.getting = false
   if (headers.length === 0) return this.end()
   this.locator = [ headers[headers.length - 1].getHash() ]
+  headers.peer = peer
   var res = this.push(headers)
   if (headers.length < 2000) return this.end()
   if (res) this._getHeaders()
