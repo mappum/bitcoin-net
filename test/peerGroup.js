@@ -1,4 +1,4 @@
-var test = require('tap').test
+var tap = require('tap')
 var params = require('webcoin-bitcoin')
 var u = require('bitcoin-util')
 var Block = require('bitcoinjs-lib').Block
@@ -9,6 +9,16 @@ var to = require('flush-write-stream').obj
 var PeerGroup = require('../lib/peerGroup.js')
 var HeaderStream = require('../lib/headerStream.js')
 var BlockStream = require('../lib/blockStream.js')
+
+var test = (name, opts, f) => {
+  if (typeof opts === 'function') {
+    f = opts
+    opts = {}
+  }
+  // really high default timeout
+  if (opts.timeout == null) opts.timeout = 5 * 60 * 1000
+  return tap.test(name, opts, f)
+}
 
 test('PeerGroup constructor', (t) => {
   t.test('invalid params', (t) => {
@@ -40,7 +50,7 @@ test('PeerGroup constructor', (t) => {
 
 var numPeers = 8
 var pg
-test('connect', { timeout: 60 * 1000 }, (t) => {
+test('connect', (t) => {
   // NOTE: these tests connects to real nodes
   pg = new PeerGroup(params.net, { numPeers })
 
@@ -60,7 +70,7 @@ test('connect', { timeout: 60 * 1000 }, (t) => {
   t.ok(pg.connecting, 'pg "connecting" state is true')
 })
 
-test('peer methods', { timeout: 120 * 1000 }, (t) => {
+test('peer methods', (t) => {
   t.test('randomPeer', (t) => {
     var peers = pg.peers.slice(0)
     for (var i = 0; i < 100; i++) {
@@ -99,7 +109,7 @@ test('peer methods', { timeout: 120 * 1000 }, (t) => {
     chain.once('ready', () => t.end())
   })
 
-  t.test('createHeaderStream', { timeout: 60 * 1000 }, (t) => {
+  t.test('createHeaderStream', (t) => {
     var expectedHeaders = [
       {
         first: '00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048',
@@ -137,7 +147,7 @@ test('peer methods', { timeout: 120 * 1000 }, (t) => {
     }, () => t.end()))
   })
 
-  t.test('createBlockStream', { timeout: 60 * 1000 }, (t) => {
+  t.test('createBlockStream', (t) => {
     var stream = pg.createBlockStream(chain, {
       from: chain.genesis.hash,
       bufferSize: 50
