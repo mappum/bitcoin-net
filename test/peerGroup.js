@@ -37,7 +37,7 @@ test('PeerGroup constructor', (t) => {
   t.end()
 })
 
-test('connect, disconnect', (t) => {
+test('connect, close', (t) => {
   // NOTE: this test connects to real nodes
   var numPeers = 8
   var peers = new PeerGroup(params.net, { numPeers })
@@ -62,7 +62,7 @@ test('connect, disconnect', (t) => {
   t.test('disconnect from peers', (t) => {
     var i = 0
     peers.on('disconnect', (peer) => {
-      t.notOk(peers.connecting, 'peers "connecting" state is false')
+      t.ok(peers.closed, 'peers "closed" state is true')
       i++
       t.ok(peer, 'got disconnected peer')
       t.equal(peers.peers.length, numPeers - i, 'correct number of remaining peers')
@@ -70,7 +70,7 @@ test('connect, disconnect', (t) => {
       t.equal(peers.peers.length, 0, 'disconnected from all peers')
       t.end()
     })
-    peers.disconnect()
+    peers.close()
   })
 
   t.end()
@@ -190,7 +190,7 @@ test('peer methods', (t) => {
         t.end()
       }
     })
-    pg.disconnect()
+    pg.close()
   })
 
   t.end()
