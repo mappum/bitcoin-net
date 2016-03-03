@@ -11,14 +11,17 @@ var proto = require('bitcoin-protocol')
 var INV = proto.constants.inventory
 var u = require('bitcoin-util')
 var pkg = require('../package.json')
-var HeaderStream = require('./headerStream.js')
-var BlockStream = require('./blockStream.js')
 var transforms = require('./protocolTransforms.js')
 
 var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
 var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
 var BLOOMSERVICE_VERSION = 70011
 var SENDHEADERS_VERSION = 70012
+
+var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
+var INITIAL_PING_N = 8 // send this many pings when we first connect
+var INITIAL_PING_INTERVAL = 200 // wait this many ms between initial pings
+var MIN_TIMEOUT = 300 // lower bound for timeouts (in case latency is crazy low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -58,6 +61,7 @@ class Peer extends EventEmitter {
     this.handshakeTimeout = opts.handshakeTimeout || 10 * 1000
     this.getTip = opts.getTip
     this.relay = opts.relay || false
+    this.pingInterval = opts.pingInterval || 15 * 1000
     this.version = null
     this.services = null
     this.socket = null
@@ -65,6 +69,7 @@ class Peer extends EventEmitter {
     this.sendHeaders = false
     this._handshakeTimeout = null
     this.disconnected = false
+    this.latency = 2 * 1000 // default to 2s
 
     this.setMaxListeners(200)
 
@@ -109,6 +114,14 @@ class Peer extends EventEmitter {
       })
     }
 
+    // set up ping interval and initial pings
+    this.once('ready', () => {
+      this._pingInterval = setInterval(this.ping.bind(this), this.pingInterval)
+      for (var i = 0; i < INITIAL_PING_N; i++) {
+        setTimeout(this.ping.bind(this), INITIAL_PING_INTERVAL * i)
+      }
+    })
+
     this._registerListeners()
     this._sendVersion()
   }
@@ -117,8 +130,23 @@ class Peer extends EventEmitter {
     if (this.disconnected) return
     this.disconnected = true
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout)
+    clearInterval(this._pingInterval)
     this.socket.destroy()
     this.emit('disconnect')
+  }
+
+  ping (cb) {
+    var start = Date.now()
+    var nonce = crypto.pseudoRandomBytes(8)
+    var onPong = (pong) => {
+      if (pong.nonce.compare(nonce) !== 0) return
+      this.removeListener('pong', onPong)
+      var elapsed = Date.now() - start
+      this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP)
+      if (cb) cb(null, elapsed, this.latency)
+    }
+    this.on('pong', onPong)
+    this.send('ping', { nonce })
   }
 
   _error (err) {
@@ -202,13 +230,16 @@ class Peer extends EventEmitter {
     })
   }
 
+  _getTimeout () {
+    return Math.min(this.latency * 2, MIN_TIMEOUT)
+  }
+
   getBlocks (hashes, opts, cb) {
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
     }
-    if (opts.timeout == null) opts.timeout = 5 * 1000
-    // TODO: base default timeout on ping time
+    if (opts.timeout == null) opts.timeout = this._getTimeout()
 
     var inventory = hashes.map((hash) => ({
       type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
@@ -270,7 +301,7 @@ class Peer extends EventEmitter {
       opts = {}
     }
     opts.stop = opts.stop || u.nullHash
-    opts.timeout = opts.timeout != null ? opts.timeout : 5 * 1000
+    opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout()
     var timeout
     var onHeaders = (headers) => {
       // check to see if this headers message connects to one of the locator hashes
