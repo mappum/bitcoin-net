@@ -235,7 +235,9 @@ class PeerGroup extends EventEmitter {
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
     var peers = this.peers.slice(0)
-    for (var peer of peers) peer.disconnect()
+    for (var peer of peers) {
+      peer.disconnect(new Error('PeerGroup closing'))
+    }
     // TODO: unaccept all
   }
 
@@ -279,22 +281,22 @@ class PeerGroup extends EventEmitter {
 
     if (this._hardLimit && this.peers.length > this._numPeers) {
       var disconnectPeer = this.peers.shift()
-      disconnectPeer.disconnect()
+      disconnectPeer.disconnect(new Error('PeerGroup over limit'))
     }
 
     peer.on('message', this._onMessage)
 
-    peer.once('disconnect', () => {
+    peer.once('disconnect', (err) => {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
       peer.removeListener('message', this._onMessage)
-      debug(`peer disconnect, peer.length = ${this.peers.length}`)
+      debug(`peer disconnect, peer.length = ${this.peers.length}, reason = ${err}`)
       if (this.connecting) this._fillPeers()
-      this.emit('disconnect', peer)
+      this.emit('disconnect', peer, err)
     })
     peer.on('error', (err) => {
       this.emit('peerError', err)
-      peer.disconnect()
+      peer.disconnect(err)
     })
 
     this.emit('peer', peer)
@@ -342,7 +344,7 @@ class PeerGroup extends EventEmitter {
       if (err && err.timeout) {
         // if request times out, disconnect peer and retry with another random peer
         debug(`peer request "${method}" timed out, disconnecting`)
-        peer.disconnect()
+        peer.disconnect(err)
         this.emit('requestError', err)
         var allArgs = Array.prototype.slice.call(arguments, 0)
         return this._request.apply(this, allArgs)

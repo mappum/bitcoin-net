@@ -87,7 +87,7 @@ class Peer extends EventEmitter {
       throw new Error('Must specify socket duplex stream')
     }
     this.socket = socket
-    socket.once('close', this.disconnect.bind(this))
+    socket.once('close', () => this.disconnect(new Error('Socket closed')))
     socket.on('error', this._error.bind(this))
 
     this._decoder = transforms.decode()
@@ -126,13 +126,13 @@ class Peer extends EventEmitter {
     this._sendVersion()
   }
 
-  disconnect () {
+  disconnect (err) {
     if (this.disconnected) return
     this.disconnected = true
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout)
     clearInterval(this._pingInterval)
     this.socket.destroy()
-    this.emit('disconnect')
+    this.emit('disconnect', err)
   }
 
   ping (cb) {
@@ -151,7 +151,7 @@ class Peer extends EventEmitter {
 
   _error (err) {
     this.emit('error', err)
-    this.disconnect()
+    this.disconnect(err)
   }
 
   _registerListeners () {
@@ -231,7 +231,7 @@ class Peer extends EventEmitter {
   }
 
   _getTimeout () {
-    return Math.max(this.latency * 2, MIN_TIMEOUT)
+    return Math.max(this.latency * 10, MIN_TIMEOUT)
   }
 
   getBlocks (hashes, opts, cb) {
