@@ -59,10 +59,11 @@ class PeerGroup extends EventEmitter {
       return
     }
     if (this.closed) return socket.destroy()
-    var peer = new Peer(this._params, {
+    var opts = Object.assign({
       getTip: this._getTip,
       socket
-    })
+    }, this.peerOpts)
+    var peer = new Peer(this._params, opts)
     var onError = (err) => {
       err = err || new Error('Connection error')
       debug(`peer connection error: ${err.message}`)
