@@ -10,4 +10,15 @@ function parseAddress (address) {
   return url.parse('x://' + address)
 }
 
-module.exports = { getRandom, parseAddress }
+function assertParams (params) {
+  // TODO: check more things
+  // TODO: give more specific errors
+  if (!params ||
+    !params.id ||
+    params.magic == null ||
+    !params.defaultPort) {
+    throw new Error('Invalid network parameters')
+  }
+}
+
+module.exports = { getRandom, parseAddress, assertParams }

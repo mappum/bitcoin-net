@@ -12,6 +12,7 @@ var INV = proto.constants.inventory
 var u = require('bitcoin-util')
 var pkg = require('../package.json')
 var transforms = require('./protocolTransforms.js')
+var utils = require('./utils.js')
 
 var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
 var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
@@ -45,20 +46,18 @@ var debugStream = (f) => through(function (message, enc, cb) {
 
 module.exports =
 class Peer extends EventEmitter {
-  constructor (opts) {
-    if (!opts || opts.magic == null) {
-      throw new Error('Must specify network magic')
-    }
+  constructor (params, opts) {
+    utils.assertParams(params)
 
     super()
 
-    this.magic = opts.magic
-    this.protocolVersion = opts.protocolVersion || 70012
-    this.minimumVersion = opts.minimumVersion || 70001
+    this.params = params
+    this.protocolVersion = params.protocolVersion || 70012
+    this.minimumVersion = params.minimumVersion || 70001
     this.requireBloom = opts.requireBloom && true
     this.userAgent = opts.userAgent || `/${pkg.name}:${pkg.version}/`
     if (process.browser) opts.userAgent += navigator.userAgent + '/'
-    this.handshakeTimeout = opts.handshakeTimeout || 10 * 1000
+    this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000
     this.getTip = opts.getTip
     this.relay = opts.relay || false
     this.pingInterval = opts.pingInterval || 15 * 1000
@@ -91,13 +90,13 @@ class Peer extends EventEmitter {
     socket.on('error', this._error.bind(this))
 
     this._decoder = transforms.decode()
-    var protoDecoder = proto.createDecodeStream({ magic: this.magic })
+    var protoDecoder = proto.createDecodeStream({ magic: this.params.magic })
     protoDecoder.on('error', this._error.bind(this))
     var decodeDebug = debugStream(debug.rx)
     socket.pipe(protoDecoder).pipe(this._decoder).pipe(decodeDebug)
 
     this._encoder = transforms.encode()
-    var protoEncoder = proto.createEncodeStream({ magic: this.magic })
+    var protoEncoder = proto.createEncodeStream({ magic: this.params.magic })
     protoEncoder.on('error', this._error.bind(this))
     var encodeDebug = debugStream(debug.tx)
     this._encoder.pipe(encodeDebug).pipe(protoEncoder).pipe(socket)

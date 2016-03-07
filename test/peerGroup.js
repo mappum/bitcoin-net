@@ -57,7 +57,6 @@ test('connect', (t) => {
   var onPeer = (peer) => {
     t.ok(peer, 'got peer')
     t.ok(peer.ready, 'peer has completed handshake')
-    t.equal(peer.magic, params.net.magic, 'correct magic bytes')
     t.ok(peer.socket.readable, 'peer transport socket is readable')
     t.ok(peer.socket.writable, 'peer transport socket is writable')
     if (pg.peers.length < numPeers) return

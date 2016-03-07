@@ -13,21 +13,10 @@ var utils = require('./utils.js')
 
 var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
-function assertParams (params) {
-  // TODO: check more things
-  // TODO: give more specific errors
-  if (!params ||
-    !params.id ||
-    params.magic == null ||
-    !params.defaultPort) {
-    throw new Error('Invalid network parameters')
-  }
-}
-
 module.exports =
 class PeerGroup extends EventEmitter {
   constructor (params, opts) {
-    assertParams(params)
+    utils.assertParams(params)
     super()
     this._params = params
     opts = opts || {}
@@ -39,9 +28,9 @@ class PeerGroup extends EventEmitter {
     this._connectWeb = opts.connectWeb != null
       ? opts.connectWeb : process.browser
     this.connectTimeout = opts.connectTimeout != null
-      ? opts.connectTimeout : 5 * 1000
-    this.handshakeTimeout = opts.handshakeTimeout != null
-      ? opts.handshakeTimeout : 5 * 1000
+      ? opts.connectTimeout : 8 * 1000
+    this.peerOpts = opts.peerOpts != null
+      ? opts.peerOpts : {}
     this.connecting = false
     this.closed = false
 
@@ -70,11 +59,8 @@ class PeerGroup extends EventEmitter {
       return
     }
     if (this.closed) return socket.destroy()
-    var peer = new Peer({
-      magic: this._params.magic,
-      protocolVersion: this._params.protocolVersion,
+    var peer = new Peer(this._params, {
       getTip: this._getTip,
-      handshakeTimeout: this.handshakeTimeout,
       socket
     })
     var onError = (err) => {
@@ -210,7 +196,7 @@ class PeerGroup extends EventEmitter {
     // first, try to connect to web seeds so we can get web peers
     // once we have a few, start filling peers via any random
     // peer discovery method
-    if (this._params.webSeeds && this._params.webSeeds.length) {
+    if (this._connectWeb && this._params.webSeeds && this._params.webSeeds.length) {
       var nSeeds = Math.min(
         this._params.webSeeds.length,
         Math.floor(this._numPeers / 2),
@@ -242,12 +228,12 @@ class PeerGroup extends EventEmitter {
   }
 
   // accept incoming connections through websocket and webrtc (if supported)
-  accept (opts, cb) {
-    if (typeof opts === 'function') {
-      cb = opts
-      opts = {}
+  accept (port, cb) {
+    if (typeof port === 'function') {
+      cb = port
+      port = null
     }
-    var port = this.websocketPort = opts.port || DEFAULT_PXP_PORT
+    port = this.websocketPort = port || DEFAULT_PXP_PORT
     this._exchange.accept('websocket', { port }, (err1) => {
       if (!err1) this.acceptingWebsocket = true
       this._exchange.accept('webrtc', (err2) => {
@@ -255,8 +241,7 @@ class PeerGroup extends EventEmitter {
         if (err2 && err2.message === 'Transport "webrtc" not found') err2 = null
         if (!err2) this.acceptingWebRTC = true
         if (cb) return cb(err1 || err2)
-        if (err1) this._error(err1)
-        if (err2) this._error(err2)
+        if (err1 && err2) return this._error(err1)
       })
     })
   }
@@ -266,8 +251,7 @@ class PeerGroup extends EventEmitter {
     this._exchange.unaccept('websocket', (err1) => {
       this._exchange.unaccept('webrtc', (err2) => {
         if (cb) return cb(err1 || err2)
-        if (err1) this._error(err1)
-        if (err2) this._error(err2)
+        if (err1 && err2) return this._error(err1)
       })
     })
   }
