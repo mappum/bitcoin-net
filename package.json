@@ -1,7 +1,7 @@
 {
   "name": "bitcoin-net",
   "version": "2.0.0",
-  "description": "Bitcoin P2P networking",
+  "description": "Bitcoin P2P networking tht works in Node and the browser",
   "main": "index.js",
   "scripts": {
     "test": "standard src test index.js && tap -Rspec -t300 --cov test/*.js",
