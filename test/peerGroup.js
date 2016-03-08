@@ -177,9 +177,11 @@ test('close', (t) => {
     i++
     t.ok(peer, 'got disconnected peer')
     t.equal(pg.peers.length, startPeers - i, 'correct number of remaining peers')
-    if (i < startPeers) return
+  })
+  pg.close((err) => {
+    t.pass('close listener called')
+    t.error(err, 'no error')
     t.equal(pg.peers.length, 0, 'disconnected from all peers')
     t.end()
   })
-  pg.close()
 })
