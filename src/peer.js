@@ -277,12 +277,17 @@ class Peer extends EventEmitter {
     }, opts.timeout)
   }
 
-  getTransactions (blockHash, txids, cb) {
+  getTransactions (blockHash, txids, opts, cb) {
+    if (typeof opts === 'function') {
+      cb = opts
+      opts = {}
+    }
+
     var txIndex = {}
     txids.forEach((txid, i) => txIndex[txid.toString('base64')] = i)
     var output = new Array(txids.length)
 
-    this.getBlocks([ blockHash ], (err, blocks) => {
+    this.getBlocks([ blockHash ], opts, (err, blocks) => {
       if (err) return cb(err)
       for (var tx of blocks[0].transactions) {
         var id = tx.getHash().toString('base64')
