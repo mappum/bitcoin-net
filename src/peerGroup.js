@@ -6,6 +6,7 @@ var EventEmitter = require('events')
 try { var net = require('net') } catch (err) {}
 var exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
+var once = require('once')
 var BlockStream = require('./blockStream.js')
 var HeaderStream = require('./headerStream.js')
 var Peer = require('./peer.js')
@@ -33,9 +34,10 @@ class PeerGroup extends EventEmitter {
       ? opts.peerOpts : {}
     this.connecting = false
     this.closed = false
+    this.accepting = false
 
     var wrtc = opts.wrtc || getBrowserRTC()
-    this._exchange = exchange(params.id, { wrtc })
+    this._exchange = exchange(params.magic.toString(16), { wrtc })
     this._exchange.on('error', this._error.bind(this))
     this._exchange.on('peer', (peer) => {
       if (!peer.incoming) return
@@ -218,14 +220,22 @@ class PeerGroup extends EventEmitter {
   }
 
   // disconnect from all peers and stop accepting connections
-  close () {
+  close (cb) {
+    if (cb) cb = once(cb)
+    else cb = (err) => { if (err) this._error(err) }
+
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
-    var peers = this.peers.slice(0)
-    for (var peer of peers) {
-      peer.disconnect(new Error('PeerGroup closing'))
-    }
-    // TODO: unaccept all
+    this.unaccept((err) => {
+      if (err) return cb(err)
+      var peers = this.peers.slice(0)
+      for (var peer of peers) {
+        peer.once('disconnect', () => {
+          if (this.peers.length === 0) cb(null)
+        })
+        peer.disconnect(new Error('PeerGroup closing'))
+      }
+    })
   }
 
   // accept incoming connections through websocket and webrtc (if supported)
@@ -235,24 +245,27 @@ class PeerGroup extends EventEmitter {
       port = null
     }
     port = this.websocketPort = port || DEFAULT_PXP_PORT
-    this._exchange.accept('websocket', { port }, (err1) => {
-      if (!err1) this.acceptingWebsocket = true
-      this._exchange.accept('webrtc', (err2) => {
+    cb = cb || ((err) => { if (err) this._error(err) })
+    this._exchange.accept('websocket', { port }, (err) => {
+      if (err) return cb(err)
+      this._exchange.accept('webrtc', (err) => {
         // ignore errors about not having a webrtc transport
-        if (err2 && err2.message === 'Transport "webrtc" not found') err2 = null
-        if (!err2) this.acceptingWebRTC = true
-        if (cb) return cb(err1 || err2)
-        if (err1 && err2) return this._error(err1)
+        if (err && err.message === 'Transport "webrtc" not found') err = null
+        if (err) return this.unaccept(() => cb(err))
+        this.accepting = true
+        cb(null)
       })
     })
   }
 
   // stop accepting incoming connections
   unaccept (cb) {
+    if (!this.accepting) return cb(null)
     this._exchange.unaccept('websocket', (err1) => {
       this._exchange.unaccept('webrtc', (err2) => {
+        this.accepting = false
         if (cb) return cb(err1 || err2)
-        if (err1 && err2) return this._error(err1)
+        if (err1 || err2) return this._error(err1 || err2)
       })
     })
   }
