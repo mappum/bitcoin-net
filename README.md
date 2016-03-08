@@ -30,7 +30,7 @@ peers.on('peer', (peer) => {
 peers.connect()
 
 // allow incoming connections from bitcoin-net peers
-peers.accept({ port: 8192 }, (err) => {
+peers.accept((err) => {
   if (err) return console.error(err)
   console.log('accepting incoming connections')
 })
