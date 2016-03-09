@@ -55,8 +55,13 @@ class Peer extends EventEmitter {
     this.protocolVersion = params.protocolVersion || 70012
     this.minimumVersion = params.minimumVersion || 70001
     this.requireBloom = opts.requireBloom && true
-    this.userAgent = opts.userAgent || `/${pkg.name}:${pkg.version}/`
-    if (process.browser) opts.userAgent += navigator.userAgent + '/'
+    this.userAgent = opts.userAgent
+    if (!opts.userAgent) {
+      if (process.browser) this.userAgent = `/${navigator.userAgent}/`
+      else this.userAgent = `/node.js:${process.versions.node}/`
+      this.userAgent += `${pkg.name}:${pkg.version}/`
+    }
+    if (opts.subUserAgent) this.userAgent += opts.subUserAgent
     this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000
     this.getTip = opts.getTip
     this.relay = opts.relay || false
