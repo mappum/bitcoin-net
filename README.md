@@ -50,7 +50,6 @@ Creates  `PeerGroup` which manages peer connections for a network.
 `opts` can optionally specify the following:
 - `numPeers` *Number* (default: `8`) - the number of peer connections to maintain
 - `hardLimit` *Boolean* (default: `false`) - If `false`, the number of peers may exceed `numPeers` when accepting incoming connections. If `true` then we will drop some random connections to keep the number of peers at `numPeers`.
-- `getTip` *Function* - Should return a *Number* representing the node's blockchain height. This will get sent in the initial handshake for peer connections. Note that things will work fine even if this isn't provided.
 - `connectWeb` *Boolean* (default: `true` in browsers, `false` in Node) - enables making outgoing connections to `bitcoin-net` WebSocket/WebRTC peers
 - `connectTimeout` *Number* (default: `5000`) - the amount of time (in milliseconds) before timing out when trying to open a connection
 - `wrtc` *Object* (default: built-in implementation in browsers, `undefined` in Node) - a WebRTC implementation for Node.js clients, e.g. the [`wrtc`](https://github.com/js-platform/node-webrtc) or [`electron-webrtc`](https://github.com/mappum/electron-webrtc) packages
@@ -101,7 +100,7 @@ The `opts` object is passed to the [`BlockStream`](#BlockStream) constructor.
 #### `peers.getBlocks(hashes, [opts], cb)`
 
 Downloads a set of blocks from one of the peers in the `PeerGroup`. If the peer times out, the request will be retried with a different peer.
-«»
+
 `hashes` should be an array of hashes of the blocks to download (as `Buffer`s).
 
 `opts` may contain the following:
@@ -113,7 +112,7 @@ Downloads a set of blocks from one of the peers in the `PeerGroup`. If the peer 
 ----
 #### `peers.getTransactions(blockHash, txids, [opts], cb)`
 
-Downloads a set of transactions from one of the peers in the `PeerGroup`. Note that due to the design of Bitcoin full nodes, the requested transactions must all be in the same block and the block hash must be provided. Returned transactions are instances of `Transaction` from the [`bitcoinjs-lib`](https://github.com/bitcoinjs/bitcoinjs-lib) module.
+Downloads a set of transactions from one of the peers in the `PeerGroup`. Note that due to the design of Bitcoin full nodes, the requested transactions must all be in the same block and the block hash must be specified. Returned transactions are instances of `Transaction` from the [`bitcoinjs-lib`](https://github.com/bitcoinjs/bitcoinjs-lib) module.
 
 `blockHash` should be the hash of the block containing the transactions (as a `Buffer`).
 
@@ -151,6 +150,108 @@ Stops accepting incoming connections. If provided, `cb` is called with `cb(err)`
 #### `peers.close([cb])`
 
 Disconnects from all peers and stops accepting incoming connections. If provided, `cb` is called with `cb(err)` when all peer connections have ended and listening has stopped.
+
+----
+#### `peers.peers`
+
+An array containing the currently connected `Peer`s. Modifying this will cause undefined behavior.
+
+----
+#### `peers.closed`
+
+A boolean which is true if `peers.close()` has been called.
+
+----
+#### `peers.accepting`
+
+A boolean which is true if the `PeerGroup` is accepting incoming connections.
+
+### Peer
+
+`Peer` represents a connection to another node.
+
+Received messages are parsed as JS objects (see [`bitcoin-protocol`](https://github.com/mappum/bitcoin-protocol#payload-reference) for the message formats) and emitted as events (e.g. `peer.on('inv', handler)` for `inv` messages). Some basic protocol logic is handled automatically (namely the initial handshake and sending/responding to ping messages).
+
+----
+#### `var peer = new Peer(params, [opts])`
+
+`params` should be the network parameters for the network you wish to use. Parameters for Bitcoin are available at `require('webcoin-bitcoin').net`. For more info about params you can use, see the [Parameters](#parameters) section.
+
+`opts` can specify the following:
+- `getTip` *Function* - Should return a *Number* representing the node's blockchain height. This will get sent in the initial handshake for peer connections. Note that things will work fine even if this isn't provided.
+- `relay` *Boolean* (default: `true`) - if `false` then the remote node will not relay transactions (unless a Bloom filter is set)
+- `requireBloom` *Boolean* (default: `true`) - error if the peer does not support Bloom filtering
+- `userAgent` *String* (default: `/<node or browser>:<version>/bitcoin-net:<version>/`) - sent in the handshake. See [BIP 14](https://github.com/bitcoin/bips/blob/master/bip-0014.mediawiki#Proposal) for the proper user agent format.
+- `subUserAgent` *String* - like the `userAgent` option, but gets appended to the default user agent string rather than overriding it
+- `handshakeTimeout` *Number* (default: `8000`) - the amount of time (in milliseconds) to wait before timing out when doing the initial handshake
+- `pingInterval` *Number* (default: `15000`) - the amount of time (in milliseconds) between pings sent to the remote peer (used to ensure it is responsive and to measure latency)
+- `socket` *duplex stream* - the peer connection (equivalent to calling `peer.connect(socket)`)
+
+----
+#### `peer.connect(socket)`
+
+Begins communication with the remote peer over `socket`. The handshake will start after calling this, and the `ready` event will be emitted once it is complete.
+
+`socket` should be a duplex stream.
+
+----
+#### `peer.send(command, payload)`
+
+Sends a message to the remote peer. See the [`bitcoin-protocol`](https://github.com/mappum/bitcoin-protocol#payload-reference) reference for a list of commands and message formats.
+
+----
+#### `peer.ping(cb)`
+
+Sends a ping message to the peer and calls the callback once a `pong` message is received.
+
+`cb` will be called with `cb(err, latency)`.
+
+----
+#### `peer.getBlocks(hashes, [opts], cb)`
+
+Downloads a set of blocks from the remote peer.
+
+`hashes` should be an array of hashes of the blocks to download (as `Buffer`s).
+
+`opts` may contain the following:
+- `timeout` *Number* (default: `peer.latency * 10`) - Amount of time (in milliseconds) to wait before timing out on the request
+- `filtered` *Boolean* (default: `false`) - Whether or not to request Bloom filtered Merkle-blocks, or full blocks
+
+`cb` will be called with `cb(err, blocks)` once all of the requested blocks have been received or an error occurs.
+
+----
+#### `peer.getTransactions(blockHash, txids, [opts], cb)`
+
+Downloads a set of transactions from the remote peer. Note that due to the design of Bitcoin full nodes, the requested transactions must all be in the same block and the block hash must be specified. Returned transactions are instances of `Transaction` from the [`bitcoinjs-lib`](https://github.com/bitcoinjs/bitcoinjs-lib) module.
+
+`blockHash` should be the hash of the block containing the transactions (as a `Buffer`).
+
+`txids` should be an array of `Buffer`s representing the hashes of the transactions to be downloaded.
+
+`opts` may contain the following:
+- `timeout` *Number* (default: `peer.latency * 10`) - Amount of time (in milliseconds) to wait before timing out on the request
+
+`cb` will be called with `cb(err, transactions)` once all of the requested blocks have been received or an error occurs.
+
+----
+#### `peer.getHeaders(locator, [opts], cb)`
+
+Downloads blockchain headers from the remote peer. Returns up to 2000 contiguous block headers, in order. Returned headers are instances of `Block` from the [`bitcoinjs-lib`](https://github.com/bitcoinjs/bitcoinjs-lib) module.
+
+`locator` should be an array of one or more block hashes (as `Buffer`s), ordered descending by height, representing the starting point for the headers that will be sent. For more information about this, see the [`bitcoin wiki`](https://en.bitcoin.it/wiki/Protocol_documentation#getblocks).
+
+`opts` may contain the following:
+- `timeout` *Number* (default: `peer.latency * 10`) - Amount of time (in milliseconds) to wait before timing out on the request
+- `stop` *Buffer* - If provided, no headers will be sent that come after the header with this hash
+
+`cb` will be called with `cb(err, headers)` once all of the requested blocks have been received or the request times out.
+
+----
+#### `peer.disconnect([error])`
+
+Disconnects the peer and its underlying socket. The `disconnect` event will be emitted once the peer has disconnected.
+
+`error` may be an `Error` that describes why the peer is being disconnected (emitted as an argument to listeners of the `disconnect` event).
 
 ----
 ### Parameters
