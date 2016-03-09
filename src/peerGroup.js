@@ -22,7 +22,6 @@ class PeerGroup extends EventEmitter {
     this._params = params
     opts = opts || {}
     this._numPeers = opts.numPeers || 8
-    this._getTip = opts.getTip
     this.peers = []
     this._hardLimit = opts.hardLimit || false
     this.websocketPort = null
@@ -61,10 +60,7 @@ class PeerGroup extends EventEmitter {
       return
     }
     if (this.closed) return socket.destroy()
-    var opts = Object.assign({
-      getTip: this._getTip,
-      socket
-    }, this.peerOpts)
+    var opts = Object.assign({ socket }, this.peerOpts)
     var peer = new Peer(this._params, opts)
     var onError = (err) => {
       err = err || new Error('Connection error')
