@@ -26,6 +26,7 @@ HeaderStream.prototype._read = function () {
 }
 
 HeaderStream.prototype.end = function () {
+  if (this.done) return
   this.done = true
   this.push(null)
 }
@@ -40,6 +41,7 @@ HeaderStream.prototype._getHeaders = function () {
 }
 
 HeaderStream.prototype._onHeaders = function (err, headers, peer) {
+  if (this.done) return
   if (err) return this._error(err)
   if (headers.length === 0) return this.end()
   headers.peer = peer
