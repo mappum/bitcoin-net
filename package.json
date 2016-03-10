@@ -39,6 +39,6 @@
     "memdown": "^1.1.2",
     "standard": "^6.0.7",
     "tap": "^5.7.0",
-    "webcoin-bitcoin": "^2.0.0"
+    "webcoin-bitcoin": "^2.1.0"
   }
 }
