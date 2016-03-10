@@ -36,6 +36,37 @@ peers.accept((err) => {
 })
 ```
 
+#### Table of Contents
+
+- [Class: PeerGroup](#peergroup)
+  - [`new PeerGroup(params, [opts])`](#var-peers--new-peergroupparams-opts)
+  - [`peers.connect()`](#peersconnect)
+  - [`peers.accept([port], [cb])`](#peersacceptport-cb)
+  - [`peers.addPeer(peer)`](#peersaddpeerpeer)
+  - [`peers.createHeaderStream([opts])`](#peerscreateheaderstreamopts)
+  - [`peers.createBlockStream(chain, [opts])`](#peerscreateheaderstreamchain-opts)
+  - [`peers.getBlocks(hashes, [opts], cb)`](#peersgetblockshashes-opts-cb)
+  - [`peers.getTransactions(blockHash, txids, [opts], cb)`](#peersgettransactionsblockhash-txids-opts-cb)
+  - [`peers.getHeaders(locator, [opts], cb)`](#peersgetheaderslocator-opts-cb)
+  - [`peers.randomPeer()`](#peersrandompeer)
+  - [`peers.unaccept([cb])`](#peersunacceptcb)
+  - [`peers.close([cb])`](#peersclosecb)
+  - [`peers.peers`](#peerspeers)
+  - [`peers.closed`](#peersclosed)
+  - [`peers.accepting`](#peersaccepting)
+- [Class: Peer](#peer)
+  - [`new Peer(params, [opts])`](#var-peer--new-peerparams-opts)
+  - [`peer.connect(socket)`](#peerconnectsocket)
+  - [`peer.send(command, payload)`](#peersendcommand-payload)
+  - [`peer.ping(cb)`](#peerpingcb)
+  - [`peer.getBlocks(hashes, [opts], cb)`](#peergetblockshashes-opts-cb)
+  - [`peer.getTransactions(blockHash, txids, [opts], cb)`](#peergettransactionsblockhash-txids-opts-cb)
+  - [`peer.getHeaders(locator, [opts], cb)`](#peergetheaderslocator-opts-cb)
+  - [`peer.disconnect([error])`](#peerdisconnecterror)
+  - [`peer.version`](#peerversion)
+  - [`peer.services`](#peerservices)
+  - [`peer.socket`](#peersocket)
+
 ### PeerGroup
 
 `PeerGroup` manages connections to multiple peers. It discovers peers through multiple methods: static IPs and DNS seeds provided in the network parameters, and [`peer-exchange`](https://github.com/mappum/peer-exchange) for clients in the browser. `PeerGroup` also optionally accepts incoming connections via WebSocket and/or WebRTC, to be accessible to browser clients.
@@ -252,6 +283,22 @@ Downloads blockchain headers from the remote peer. Returns up to 2000 contiguous
 Disconnects the peer and its underlying socket. The `disconnect` event will be emitted once the peer has disconnected.
 
 `error` may be an `Error` that describes why the peer is being disconnected (emitted as an argument to listeners of the `disconnect` event).
+
+----
+#### `peer.version`
+
+The `version` message received from the remote peer during the initial handshake.
+
+----
+#### `peer.services`
+
+The node services supported by the remote peer, as an array of strings (containing service strings such as `'NODE_NETWORK'`, `'NODE_BLOOM'`).
+
+----
+#### `peer.socket`
+
+The underlying duplex stream used to communicate with the remote peer.
+
 
 ----
 ### Parameters
