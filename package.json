@@ -27,7 +27,7 @@
     "debug": "^2.2.0",
     "get-browser-rtc": "^1.0.2",
     "once": "^1.3.3",
-    "peer-exchange": "^0.3.0",
+    "peer-exchange": "^0.4.0",
     "through2": "^2.0.1"
   },
   "devDependencies": {
