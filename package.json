@@ -40,5 +40,16 @@
     "standard": "^6.0.7",
     "tap": "^5.7.0",
     "webcoin-bitcoin": "^2.0.0"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mappum/bitcoin-net.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mappum/bitcoin-net/issues"
+  },
+  "homepage": "https://github.com/mappum/bitcoin-net#readme"
 }
