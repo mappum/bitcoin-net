@@ -88,7 +88,7 @@ BlockStream.prototype._onBlock = function (message) {
   this._push(reqIndex, {
     height: this.requestHeight + reqIndex,
     header: message.header,
-    block: message
+    transactions: message.transactions
   })
 }
 
@@ -110,7 +110,6 @@ BlockStream.prototype._onMerkleBlock = function (message) {
     self._push(reqIndex, {
       height: height,
       header: message.merkleBlock.header,
-      txids: txids,
       transactions: transactions
     })
   }
