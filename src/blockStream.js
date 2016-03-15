@@ -15,6 +15,7 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   this.from = opts.from || 0
   this.to = opts.to || null
   this.bufferSize = opts.bufferSize || 128
+  this.filtered = opts.filtered
 
   this.requestCursor = this.from
   this.requestQueue = []
@@ -22,8 +23,6 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   this.buffer = []
   this.pause = false
   this.ended = false
-
-  this.filtered = !!this.peers.filter
 }
 util.inherits(BlockStream, Readable)
 
@@ -66,7 +65,7 @@ BlockStream.prototype._next = function () {
 
 BlockStream.prototype._getData = function (hash) {
   if (this.ended) return
-  this.peers.getBlocks([ hash ], (err, blocks) => {
+  this.peers.getBlocks([ hash ], { filtered: this.filtered }, (err, blocks) => {
     if (err) return this._error(err)
     var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
     onBlock.call(this, blocks[0])
