@@ -22,7 +22,7 @@ var SENDHEADERS_VERSION = 70012
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
 var INITIAL_PING_N = 8 // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 200 // wait this many ms between initial pings
-var MIN_TIMEOUT = 500 // lower bound for timeouts (in case latency is low)
+var MIN_TIMEOUT = 1000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -235,7 +235,7 @@ class Peer extends EventEmitter {
   }
 
   _getTimeout () {
-    return Math.max(this.latency * 10, MIN_TIMEOUT)
+    return MIN_TIMEOUT + this.latency * 4
   }
 
   getBlocks (hashes, opts, cb) {
@@ -306,6 +306,9 @@ class Peer extends EventEmitter {
   }
 
   getHeaders (locator, opts, cb) {
+    if (!locator || locator.length === 0) {
+      return cb(new Error('"locator" argument must be provided'))
+    }
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
