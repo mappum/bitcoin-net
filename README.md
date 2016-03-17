@@ -43,6 +43,7 @@ peers.accept((err) => {
   - [`peers.connect()`](#peersconnect)
   - [`peers.accept([port], [cb])`](#peersacceptport-cb)
   - [`peers.addPeer(peer)`](#peersaddpeerpeer)
+  - [`peer.send(command, payload, [assert])`](#peerssendcommand-payload-assert)
   - [`peers.createHeaderStream([opts])`](#peerscreateheaderstreamopts)
   - [`peers.createBlockStream(chain, [opts])`](#peerscreateheaderstreamchain-opts)
   - [`peers.getBlocks(hashes, [opts], cb)`](#peersgetblockshashes-opts-cb)
@@ -110,6 +111,13 @@ For more information about the protocol for incoming connections, see the [`peer
 #### `peers.addPeer(peer)`
 
 Manually add an already connected `Peer` to the `PeerGroup`. This can be useful if you would like to make a peer connection through your own transport, but have it be managed by the `PeerGroup`. This method will error if the `Peer` has not already finished its handshake (e.g. it hasn't emitted the `ready` event).
+
+----
+#### `peers.send(command, payload, [assert])`
+
+Sends a message to all peers in the `PeerGroup`. See the [`bitcoin-protocol`](https://github.com/mappum/bitcoin-protocol#payload-reference) reference for a list of commands and message formats.
+
+An error will thrown if there are no peers connected, unless `assert` is `false` (it defaults to `true`).
 
 ----
 #### `peers.createHeaderStream([opts])`
