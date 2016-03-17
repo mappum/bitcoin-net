@@ -17,7 +17,6 @@ var utils = require('./utils.js')
 var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
 var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
 var BLOOMSERVICE_VERSION = 70011
-var SENDHEADERS_VERSION = 70012
 
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
 var INITIAL_PING_N = 8 // send this many pings when we first connect
@@ -70,7 +69,6 @@ class Peer extends EventEmitter {
     this.services = null
     this.socket = null
     this.ready = false
-    this.sendHeaders = false
     this._handshakeTimeout = null
     this.disconnected = false
     this.latency = 2 * 1000 // default to 2s
@@ -174,8 +172,6 @@ class Peer extends EventEmitter {
       this._maybeReady()
     })
 
-    this.on('sendheaders', () => this.sendHeaders = true)
-
     this.on('ping', (message) => this.send('pong', message))
   }
 
@@ -201,9 +197,6 @@ class Peer extends EventEmitter {
   _maybeReady () {
     if (!this.verack || !this.version) return
     this.ready = true
-    if (this.version.version >= SENDHEADERS_VERSION) {
-      this.send('sendheaders')
-    }
     this.emit('ready')
   }
 
