@@ -73,6 +73,8 @@ class Peer extends EventEmitter {
     this.disconnected = false
     this.latency = 2 * 1000 // default to 2s
 
+    this.getHeadersQueue = []
+
     this.setMaxListeners(200)
 
     if (opts.socket) this.connect(opts.socket)
@@ -299,28 +301,29 @@ class Peer extends EventEmitter {
   }
 
   getHeaders (locator, opts, cb) {
-    if (!locator || locator.length === 0) {
-      return cb(new Error('"locator" argument must be provided'))
+    if (this.getHeadersQueue.length > 0) {
+      this.getHeadersQueue.push({ locator, opts, cb })
+      return
     }
+
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
+    } else if (typeof locator === 'function') {
+      cb = locator
+      opts = {}
+      locator = []
     }
+
     opts.stop = opts.stop || u.nullHash
     opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout()
     var timeout
     var onHeaders = (headers) => {
-      // check to see if this headers message connects to one of the locator hashes
-      // (it could be a message from another getHeaders call, which we should ignore)
-      for (var locIndex = 0; locIndex < locator.length; locIndex++) {
-        if (locator[locIndex].compare(headers[0].prevHash) === 0) break
-      }
-      if (locIndex === locator.length) return
-      this.removeListener('headers', onHeaders)
       if (timeout) clearTimeout(timeout)
       cb(null, headers)
+      this._nextHeadersRequest()
     }
-    this.on('headers', onHeaders)
+    this.once('headers', onHeaders)
     this.send('getheaders', {
       version: this.protocolVersion,
       locator,
@@ -333,6 +336,14 @@ class Peer extends EventEmitter {
       var error = new Error('Request timed out')
       error.timeout = true
       cb(error)
+      this._nextHeadersRequest()
     }, opts.timeout)
+  }
+
+  _nextHeadersRequest () {
+    this.getHeadersQueue.shift()
+    if (this.getHeadersQueue.length === 0) return
+    var req = this.getHeadersQueue[0]
+    this.getHeaders(req.locator, req.opts. req.cb)
   }
 }
