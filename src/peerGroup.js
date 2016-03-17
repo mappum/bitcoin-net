@@ -180,8 +180,9 @@ class PeerGroup extends EventEmitter {
   }
 
   // sends a message to all peers
-  send (command, payload) {
-    this._assertPeers()
+  send (command, payload, assert) {
+    assert = assert != null ? assert : true
+    if (assert) this._assertPeers()
     for (var peer of this.peers) {
       peer.send(command, payload)
     }
