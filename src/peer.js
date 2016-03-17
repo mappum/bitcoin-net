@@ -19,8 +19,8 @@ var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
 var BLOOMSERVICE_VERSION = 70011
 
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
-var INITIAL_PING_N = 8 // send this many pings when we first connect
-var INITIAL_PING_INTERVAL = 200 // wait this many ms between initial pings
+var INITIAL_PING_N = 4 // send this many pings when we first connect
+var INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
 var MIN_TIMEOUT = 1000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
@@ -37,10 +37,9 @@ function getServices (buf) {
   return services
 }
 
-var debugStream = (f) => through(function (message, enc, cb) {
+var debugStream = (f) => through((message, enc, cb) => {
   f(message)
-  this.push(message)
-  cb(null)
+  cb(null, message)
 })
 
 module.exports =
@@ -94,11 +93,11 @@ class Peer extends EventEmitter {
     socket.once('close', () => this.disconnect(new Error('Socket closed')))
     socket.on('error', this._error.bind(this))
 
-    this._decoder = transforms.decode()
+    var decoder = transforms.decode()
     var protoDecoder = proto.createDecodeStream({ magic: this.params.magic })
     protoDecoder.on('error', this._error.bind(this))
-    var decodeDebug = debugStream(debug.rx)
-    socket.pipe(protoDecoder).pipe(this._decoder).pipe(decodeDebug)
+    this._decoder = debugStream(debug.rx)
+    socket.pipe(protoDecoder).pipe(decoder).pipe(this._decoder)
 
     this._encoder = transforms.encode()
     var protoEncoder = proto.createEncodeStream({ magic: this.params.magic })
