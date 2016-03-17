@@ -2,11 +2,15 @@ var Readable = require('stream').Readable
 var util = require('util')
 
 var HeaderStream = module.exports = function (peers, opts) {
-  if (!peers) throw new Error('"peers" option is required for HeaderStream')
+  if (!peers) throw new Error('"peers" argument is required')
+  if (!opts) throw new Error('"opts" argument is required')
+  if (!opts.locator || opts.locator.length === 0) {
+    throw new Error('"opts.locator" is required')
+  }
   Readable.call(this, { objectMode: true, highWaterMark: 4 })
   opts = opts || {}
   this.peers = peers
-  this.locator = opts.locator || []
+  this.locator = opts.locator || null
   this.timeout = opts.timeout
   this.stop = opts.stop
   this.getting = false
