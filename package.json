@@ -1,6 +1,6 @@
 {
   "name": "bitcoin-net",
-  "version": "2.2.4",
+  "version": "2.3.0",
   "description": "Bitcoin P2P networking tht works in Node and the browser",
   "main": "index.js",
   "scripts": {
