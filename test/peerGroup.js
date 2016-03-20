@@ -102,9 +102,7 @@ test('peer methods', (t) => {
   var chain
   t.test('setup blockchain', (t) => {
     var db = levelup('chain', { db: memdown })
-    var blockchainParams = Object.assign({}, params.blockchain)
-    blockchainParams.checkpoints = null
-    chain = new Blockchain(blockchainParams, db)
+    chain = new Blockchain(params.blockchain, db, { ignoreCheckpoints: true })
     chain.once('ready', () => t.end())
   })
 

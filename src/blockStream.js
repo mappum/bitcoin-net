@@ -55,7 +55,7 @@ BlockStream.prototype._next = function () {
     if (!block.next) {
       return self.requestQueue.push(null)
     }
-    self.requestCursor = u.toHash(block.next)
+    self.requestCursor = block.next
     if (self.pause) return
     if (self.requestQueue.length >= self.bufferSize) return
     self._next()
