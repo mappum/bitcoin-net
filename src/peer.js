@@ -300,8 +300,9 @@ class Peer extends EventEmitter {
   }
 
   getHeaders (locator, opts, cb) {
-    if (this.getHeadersQueue.length > 0) {
-      this.getHeadersQueue.push({ locator, opts, cb })
+    this.getHeadersQueue.push({ locator, opts, cb })
+    if (this.getHeadersQueue.length > 1) {
+      debug(`queueing "getHeaders" request: queue size=${this.getHeadersQueue.length}`)
       return
     }
 
