@@ -73,6 +73,7 @@ class Peer extends EventEmitter {
     this.latency = 2 * 1000 // default to 2s
 
     this.getHeadersQueue = []
+    this.gettingHeaders = false
 
     this.setMaxListeners(200)
 
@@ -267,7 +268,7 @@ class Peer extends EventEmitter {
     this.send('getdata', inventory)
     if (!opts.timeout) return
     timeout = setTimeout(() => {
-      debug(`getBlocks timed out: ${opts.timeout} ms`)
+      debug(`getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`)
       hashes.forEach((hash, i) => {
         this.removeListener(`block:${hash.toString('base64')}`, listeners[i])
       })
@@ -301,11 +302,12 @@ class Peer extends EventEmitter {
   }
 
   getHeaders (locator, opts, cb) {
-    this.getHeadersQueue.push({ locator, opts, cb })
-    if (this.getHeadersQueue.length > 1) {
-      debug(`queueing "getHeaders" request: queue size=${this.getHeadersQueue.length}`)
+    if (this.gettingHeaders) {
+      this.getHeadersQueue.push({ locator, opts, cb })
+      debug(`queued "getHeaders" request: queue size=${this.getHeadersQueue.length}`)
       return
     }
+    this.gettingHeaders = true
 
     if (typeof opts === 'function') {
       cb = opts
@@ -342,9 +344,9 @@ class Peer extends EventEmitter {
   }
 
   _nextHeadersRequest () {
-    this.getHeadersQueue.shift()
+    this.gettingHeaders = false
     if (this.getHeadersQueue.length === 0) return
-    var req = this.getHeadersQueue[0]
+    var req = this.getHeadersQueue.shift()
     this.getHeaders(req.locator, req.opts, req.cb)
   }
 }
