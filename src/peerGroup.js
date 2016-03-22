@@ -7,6 +7,7 @@ try { var net = require('net') } catch (err) {}
 var exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
+var pumpify = require('pumpify')
 var BlockStream = require('./blockStream.js')
 var HeaderStream = require('./headerStream.js')
 var TransactionStream = require('./transactionStream.js')
@@ -307,13 +308,12 @@ class PeerGroup extends EventEmitter {
     return new HeaderStream(this, opts)
   }
 
-  createBlockStream (chain, opts) {
-    return new BlockStream(this, chain, opts)
+  createBlockStream (opts) {
+    return new BlockStream(this, opts)
   }
 
-  createTransactionStream (chain, opts) {
-    var blocks = new BlockStream(this, chain, opts)
-    return blocks.pipe(TransactionStream())
+  createTransactionStream (opts) {
+    return pumpify(new BlockStream(this, opts), TransactionStream())
   }
 
   getBlocks (hashes, opts, cb) {

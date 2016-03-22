@@ -2,7 +2,7 @@ var through = require('through2').obj
 
 module.exports = function TransactionStream () {
   var stream = through(function (block, enc, cb) {
-    if (block.height == null || !block.header) {
+    if (block.height == null || !block.transactions) {
       return cb(new Error('Input to TransactionStream must be a stream of blocks'))
     }
     stream.last = block
