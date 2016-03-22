@@ -1,7 +1,7 @@
 var Readable = require('stream').Readable
 var util = require('util')
-var u = require('bitcoin-util')
 var merkleProof = require('bitcoin-merkle-proof')
+var u = require('bitcoin-util')
 
 var BlockStream = module.exports = function (peers, chain, opts) {
   if (!peers) throw new Error('"peers" argument is required for BlockStream')
@@ -14,7 +14,7 @@ var BlockStream = module.exports = function (peers, chain, opts) {
   // TODO: handle different types for 'from' (e.g. height, timestamp)
   this.from = opts.from || 0
   this.to = opts.to || null
-  this.bufferSize = opts.bufferSize || 128
+  this.bufferSize = opts.bufferSize || 32
   this.filtered = opts.filtered
 
   this.requestCursor = this.from
@@ -52,8 +52,17 @@ BlockStream.prototype._next = function () {
       self.requestQueue.push(hash)
       self._getData(hash)
     }
-    if (!block.next) {
-      return self.requestQueue.push(null)
+    if (block.next.equals(u.nullHash)) {
+      // we reached the tip of the chain, so wait until we get a new block
+      var onBlock = function (block) {
+        if (!block.header.prevHash.equals(hash)) return
+        self.chain.removeListener('block', onBlock)
+        self.pause = false
+        self.requestCursor = block.header.getHash()
+        self._next()
+      }
+      self.chain.on('block', onBlock)
+      return
     }
     self.requestCursor = block.next
     if (self.pause) return
