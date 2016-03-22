@@ -5,10 +5,10 @@ module.exports = function TransactionStream () {
     if (block.height == null || !block.header) {
       return cb(new Error('Input to TransactionStream must be a stream of blocks'))
     }
-
-    var txs = block.block ? block.block.transactions : block.transactions
     stream.last = block
-    txs.forEach((transaction) => this.push({ transaction, block }))
+    for (var transaction of block.transactions) {
+      this.push({ transaction, block })
+    }
     cb(null)
   })
   stream.last = null

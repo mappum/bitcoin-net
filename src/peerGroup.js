@@ -9,6 +9,7 @@ var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
 var BlockStream = require('./blockStream.js')
 var HeaderStream = require('./headerStream.js')
+var TransactionStream = require('./transactionStream.js')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
 
@@ -308,6 +309,11 @@ class PeerGroup extends EventEmitter {
 
   createBlockStream (chain, opts) {
     return new BlockStream(this, chain, opts)
+  }
+
+  createTransactionStream (chain, opts) {
+    var blocks = new BlockStream(this, chain, opts)
+    return blocks.pipe(TransactionStream())
   }
 
   getBlocks (hashes, opts, cb) {
