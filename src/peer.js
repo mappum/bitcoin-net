@@ -21,7 +21,7 @@ var BLOOMSERVICE_VERSION = 70011
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
 var INITIAL_PING_N = 4 // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
-var MIN_TIMEOUT = 1000 // lower bound for timeouts (in case latency is low)
+var MIN_TIMEOUT = 4000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -174,6 +174,10 @@ class Peer extends EventEmitter {
     })
 
     this.on('ping', (message) => this.send('pong', message))
+
+    this.on('block', (block) => {
+      this.emit(`block:${block.header.getHash().toString('base64')}`, block)
+    })
   }
 
   _onVersion (message) {
@@ -244,32 +248,29 @@ class Peer extends EventEmitter {
       hash
     }))
 
-    var blockIndex = {}
-    hashes.forEach((hash, i) => blockIndex[hash.toString('base64')] = i)
-    var remaining = hashes.length
-    var output = new Array(hashes.length)
-
-    // TODO: listen for blocks by hash
     var timeout
-    var onBlock = (block) => {
-      var hash = block.header.getHash().toString('base64')
-      var i = blockIndex[hash]
-      if (i == null) return
-      delete blockIndex[hash]
-      output[i] = block
-      remaining--
-      if (remaining === 0) {
+    var output = new Array(hashes.length)
+    var remaining = hashes.length
+    var listeners = []
+    hashes.forEach((hash, i) => {
+      var onBlock = (block) => {
+        output[i] = block
+        remaining--
+        if (remaining > 0) return
         if (timeout != null) clearTimeout(timeout)
-        this.removeListener('block', onBlock)
         cb(null, output)
       }
-    }
-    this.on('block', onBlock)
+      listeners.push(onBlock)
+      this.once(`block:${hash.toString('base64')}`, onBlock)
+    })
+
     this.send('getdata', inventory)
     if (!opts.timeout) return
     timeout = setTimeout(() => {
-      this.removeListener('block', onBlock)
       debug(`getBlocks timed out: ${opts.timeout} ms`)
+      hashes.forEach((hash, i) => {
+        this.removeListener(`block:${hash.toString('base64')}`, listeners[i])
+      })
       var error = new Error('Request timed out')
       error.timeout = true
       cb(error)
@@ -344,6 +345,6 @@ class Peer extends EventEmitter {
     this.getHeadersQueue.shift()
     if (this.getHeadersQueue.length === 0) return
     var req = this.getHeadersQueue[0]
-    this.getHeaders(req.locator, req.opts. req.cb)
+    this.getHeaders(req.locator, req.opts, req.cb)
   }
 }
