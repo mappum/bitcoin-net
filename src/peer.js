@@ -21,7 +21,7 @@ var BLOOMSERVICE_VERSION = 70011
 var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
 var INITIAL_PING_N = 4 // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
-var MIN_TIMEOUT = 4000 // lower bound for timeouts (in case latency is low)
+var MIN_TIMEOUT = 2000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
@@ -179,6 +179,9 @@ class Peer extends EventEmitter {
     this.on('block', (block) => {
       this.emit(`block:${block.header.getHash().toString('base64')}`, block)
     })
+    this.on('merkleblock', (block) => {
+      this.emit(`merkleblock:${block.header.getHash().toString('base64')}`, block)
+    })
   }
 
   _onVersion (message) {
@@ -244,11 +247,6 @@ class Peer extends EventEmitter {
     }
     if (opts.timeout == null) opts.timeout = this._getTimeout()
 
-    var inventory = hashes.map((hash) => ({
-      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-      hash
-    }))
-
     var timeout
     var output = new Array(hashes.length)
     var remaining = hashes.length
@@ -262,15 +260,20 @@ class Peer extends EventEmitter {
         cb(null, output)
       }
       listeners.push(onBlock)
-      this.once(`block:${hash.toString('base64')}`, onBlock)
+      this.once(`${opts.filtered ? 'merkle' : ''}block:${hash.toString('base64')}`, onBlock)
     })
 
+    var inventory = hashes.map((hash) => ({
+      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+      hash
+    }))
     this.send('getdata', inventory)
+
     if (!opts.timeout) return
     timeout = setTimeout(() => {
       debug(`getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`)
       hashes.forEach((hash, i) => {
-        this.removeListener(`block:${hash.toString('base64')}`, listeners[i])
+        this.removeListener(`${opts.filtered ? 'merkle' : ''}block:${hash.toString('base64')}`, listeners[i])
       })
       var error = new Error('Request timed out')
       error.timeout = true
