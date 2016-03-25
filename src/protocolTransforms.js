@@ -25,7 +25,7 @@ var toTransaction = (tx) => Object.assign(new Transaction(), tx)
 var toHeader = (header) => Object.assign(new Block(), header)
 
 var encodeTransforms = {
-  'tx': (txs) => txs.map(fromTransaction),
+  'tx': fromTransaction,
   'block': (block) => {
     var output = fromHeader(block)
     output.transactions = block.transactions.map(fromTransaction)
@@ -41,14 +41,15 @@ var encodeTransforms = {
 }
 
 var decodeTransforms = {
-  'tx': (txs) => txs.map(toTransaction),
+  'tx': toTransaction,
   'block': (block) => ({
     header: toHeader(block),
     transactions: block.transactions.map(toTransaction)
   }),
   'headers': (headers) => headers.map(toHeader),
   'merkleblock': (block) => ({
-    header: toHeader(block),
+    header: toHeader(block.header),
+    numTransactions: block.numTransactions,
     hashes: block.hashes,
     flags: block.flags
   })
