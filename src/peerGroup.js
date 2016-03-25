@@ -7,7 +7,7 @@ try { var net = require('net') } catch (err) {}
 var exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
-var pumpify = require('pumpify')
+var pumpify = require('pumpify').obj
 var BlockStream = require('./blockStream.js')
 var HeaderStream = require('./headerStream.js')
 var TransactionStream = require('./transactionStream.js')
@@ -287,7 +287,7 @@ class PeerGroup extends EventEmitter {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
       peer.removeListener('message', this._onMessage)
-      debug(`peer disconnect, peer.length = ${this.peers.length}, reason = ${err}`)
+      debug(`peer disconnect, peer.length = ${this.peers.length}, reason=${err}\n${err.stack}`)
       if (this.connecting) this._fillPeers()
       this.emit('disconnect', peer, err)
     })
