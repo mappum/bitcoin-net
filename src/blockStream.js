@@ -9,12 +9,12 @@ var BlockStream = module.exports = function (peers, opts) {
 
   opts = opts || {}
   this.peers = peers
-  this.bufferSize = opts.bufferSize || 32
+  this.batchSize = opts.batchSize || 64
   this.filtered = opts.filtered
 
+  this.batch = []
   this.requestQueue = []
   this.height = null
-  this.buffer = []
   this.ended = false
 }
 util.inherits(BlockStream, Transform)
@@ -28,10 +28,14 @@ BlockStream.prototype._transform = function (block, enc, cb) {
   if (this.ended) return
 
   if (this.height == null) this.height = block.height
-  this.buffer.push(block.header.getHash())
-  if (this.buffer.length >= this.bufferSize) {
-    self._getData(this.buffer, (err) => cb(err))
-    this.buffer = []
+
+  // buffer block hashes until we have `batchSize`, then make a `getdata`
+  // request with all of them
+  // TODO: make request with unfilled batch if block is at end of chain
+  this.batch.push(block.header.getHash())
+  if (this.batch.length >= this.batchSize) {
+    self._getData(this.batch, (err) => cb(err))
+    this.batch = []
   } else {
     return cb(null)
   }
@@ -60,6 +64,11 @@ BlockStream.prototype._onMerkleBlock = function (message) {
   if (this.ended) return
   var self = this
 
+  var block = {
+    height: this.height++,
+    header: message.header
+  }
+
   var hash = message.header.getHash()
   var txids = merkleProof.verify({
     flags: message.flags,
@@ -72,11 +81,8 @@ BlockStream.prototype._onMerkleBlock = function (message) {
 
   function done (err, transactions) {
     if (err) return self._error(err)
-    self.push({
-      height: self.height++,
-      header: message.header,
-      transactions: transactions
-    })
+    block.transactions = transactions
+    self.push(block)
   }
 }
 
