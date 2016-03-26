@@ -296,11 +296,11 @@ class Peer extends EventEmitter {
       for (var tx of blocks[0].transactions) {
         var id = tx.getHash().toString('base64')
         var i = txIndex[id]
-        if (i == null) return
+        if (i == null) continue
         delete txIndex[id]
         output[i] = tx
-        cb(null, output)
       }
+      cb(null, output)
     })
   }
 
