@@ -1,4 +1,6 @@
 var through = require('through2').obj
+var BN = require('bn.js')
+var reverse = require('buffer-reverse')
 var bitcoinjs = require('bitcoinjs-lib')
 var Transaction = bitcoinjs.Transaction
 var Block = bitcoinjs.Block
@@ -6,12 +8,19 @@ var Block = bitcoinjs.Block
 var fromTransaction = (tx) => {
   var output = Object.assign({}, tx)
   output.outs = output.outs.map((out) => {
-    if (!out.valueBuffer) {
-      throw new Error('Transaction output values must be type Buffer, with ' +
-        'property name "valueBuffer"')
+    if (out.value && out.valueBuffer) {
+      throw new Error('Transaction output has both "value" and "valueBuffer"')
+    }
+    var value = out.value || out.valueBuffer
+    if (!value || !(BN.isBN(value) || Buffer.isBuffer(value))) {
+      throw new Error('Transaction output values must be a BN.js number or ' +
+        'a Buffer')
     }
     out = Object.assign({}, out)
-    delete out.value
+    if (out.value) {
+      out.valueBuffer = out.value.toBuffer()
+      delete out.value
+    }
     return out
   })
   return output
@@ -21,7 +30,13 @@ var fromHeader = (header) => {
   output.nTransactions = 0
   return output
 }
-var toTransaction = (tx) => Object.assign(new Transaction(), tx)
+var toTransaction = (raw) => {
+  var tx = Object.assign(new Transaction(), raw)
+  for (var output of tx.outs) {
+    output.value = new BN(reverse(output.valueBuffer).toString('hex'), 'hex')
+  }
+  return tx
+}
 var toHeader = (header) => Object.assign(new Block(), header)
 
 var encodeTransforms = {
