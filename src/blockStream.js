@@ -1,11 +1,14 @@
 var Transform = require('stream').Transform
 var util = require('util')
 var merkleProof = require('bitcoin-merkle-proof')
+var debug = require('debug')('bitcoin-net:blockstream')
 
 var BlockStream = module.exports = function (peers, opts) {
   if (!(this instanceof BlockStream)) return new BlockStream(peers, opts)
   if (!peers) throw new Error('"peers" argument is required for BlockStream')
   Transform.call(this, { objectMode: true })
+
+  debug(`created BlockStream: ${opts}`)
 
   opts = opts || {}
   this.peers = peers
@@ -13,8 +16,9 @@ var BlockStream = module.exports = function (peers, opts) {
   this.filtered = opts.filtered
 
   this.batch = []
-  this.requestQueue = []
   this.height = null
+  this.buffer = []
+  this.bufferHeight = null
   this.ended = false
 }
 util.inherits(BlockStream, Transform)
@@ -27,16 +31,21 @@ BlockStream.prototype._transform = function (block, enc, cb) {
   var self = this
   if (this.ended) return
 
-  if (this.height == null) this.height = block.height
+  if (this.height == null) {
+    this.height = this.bufferHeight = block.height
+  }
 
   // buffer block hashes until we have `batchSize`, then make a `getdata`
   // request with all of them
   // TODO: make request with unfilled batch if block is at end of chain
-  this.batch.push(block.header.getHash())
+  var hash = block.header.getHash()
+  this.batch.push(hash)
   if (this.batch.length >= this.batchSize) {
+    debug(`sending getdata, size=${this.batchSize}`)
     self._getData(this.batch, (err) => cb(err))
     this.batch = []
   } else {
+    debug(`queueing block ${this.batch.length} / ${this.batchSize}`)
     return cb(null)
   }
 }
@@ -53,7 +62,7 @@ BlockStream.prototype._getData = function (hashes, cb) {
 
 BlockStream.prototype._onBlock = function (message) {
   if (this.ended) return
-  this.push({
+  this._push({
     height: this.height++,
     header: message.header,
     transactions: message.transactions
@@ -82,8 +91,22 @@ BlockStream.prototype._onMerkleBlock = function (message) {
   function done (err, transactions) {
     if (err) return self._error(err)
     block.transactions = transactions
-    self.push(block)
+    self._push(block)
   }
+}
+
+BlockStream.prototype._push = function (block) {
+  var offset = block.height - this.bufferHeight
+  this.buffer[offset] = block
+  if (!this.buffer[0]) debug(`buffering block, buffer.length=${this.buffer.length}`)
+
+  var initialLength = this.buffer.length
+  while (this.buffer[0]) {
+    this.push(this.buffer.shift())
+    this.bufferHeight++
+  }
+  var pushed = initialLength - this.buffer.length
+  if (pushed > 0) debug(`pushed ${pushed} blocks`)
 }
 
 BlockStream.prototype.end = function () {
