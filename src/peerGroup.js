@@ -313,7 +313,10 @@ class PeerGroup extends EventEmitter {
   }
 
   createTransactionStream (opts) {
-    return pumpify(new BlockStream(this, opts), TransactionStream())
+    var blocks = new BlockStream(this, opts)
+    var txs = pumpify(blocks, TransactionStream())
+    txs.blocks = blocks
+    return txs
   }
 
   getBlocks (hashes, opts, cb) {
