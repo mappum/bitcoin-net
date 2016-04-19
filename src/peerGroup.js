@@ -125,7 +125,7 @@ class PeerGroup extends EventEmitter {
     var peers = this._params.staticPeers
     var address = utils.getRandom(peers)
     var peer = utils.parseAddress(address)
-    this._connectTCP(peer.hostname, peer.port, cb)
+    this._connectTCP(peer.hostname, peer.port || this._params.defaultPort, cb)
   }
 
   // connects to a standard protocol TCP peer
@@ -372,22 +372,4 @@ peer.on('getdata', function (message) {
 })
 var invMessage = peer.messages.Inventory(this.getInventory())
 peer.sendMessage(invMessage)
-
-PeerGroup.prototype.setFilter = function (filter) {
-  this.peers.forEach(function (peer) {
-    peer.setFilter(filter)
-  })
-  this.filter = filter
-}
-PeerGroup.prototype.addToFilter = function (data) {
-  this.filter.insert(data)
-  this.peers.forEach(function (peer) {
-    peer.addToFilter(data)
-  })
-}
-PeerGroup.prototype.sendMessage = PeerGroup.prototype.broadcast = function (message) {
-  this.peers.forEach(function (peer) {
-    peer.sendMessage(message)
-  })
-}
 */
