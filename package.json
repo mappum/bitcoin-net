@@ -21,7 +21,7 @@
   "dependencies": {
     "async": "^1.5.2",
     "bitcoin-merkle-proof": "0.0.x",
-    "bitcoin-protocol": "^2.0.0",
+    "bitcoin-protocol": "^3.0.0",
     "bitcoin-util": "^2.0.0",
     "bitcoinjs-lib": "^2.2.0",
     "bn.js": "^4.11.1",
