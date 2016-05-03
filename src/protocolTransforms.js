@@ -2,8 +2,8 @@ var through = require('through2').obj
 var BN = require('bn.js')
 var reverse = require('buffer-reverse')
 var bitcoinjs = require('bitcoinjs-lib')
-var Transaction = bitcoinjs.Transaction
 var Block = bitcoinjs.Block
+var Transaction = bitcoinjs.Transaction
 
 var fromTransaction = (tx) => {
   var output = Object.assign({}, tx)
@@ -25,11 +25,10 @@ var fromTransaction = (tx) => {
   })
   return output
 }
-var fromHeader = (header) => {
-  var output = Object.assign({}, header)
-  output.nTransactions = 0
-  return output
-}
+var fromHeader = (header) => ({
+  numTransactions: header.numTransactions || 0,
+  header: Object.assign({}, header)
+})
 var toTransaction = (raw) => {
   var tx = Object.assign(new Transaction(), raw)
   for (var output of tx.outs) {
@@ -42,7 +41,7 @@ var toHeader = (header) => Object.assign(new Block(), header)
 var encodeTransforms = {
   'tx': fromTransaction,
   'block': (block) => {
-    var output = fromHeader(block)
+    var output = { header: fromHeader(block) }
     output.transactions = block.transactions.map(fromTransaction)
     return output
   },
@@ -58,10 +57,14 @@ var encodeTransforms = {
 var decodeTransforms = {
   'tx': toTransaction,
   'block': (block) => ({
-    header: toHeader(block),
+    header: toHeader(block.header),
     transactions: block.transactions.map(toTransaction)
   }),
-  'headers': (headers) => headers.map(toHeader),
+  'headers': (headers) => headers.map((header) => {
+    var output = toHeader(header.header)
+    output.numTransactions = header.numTransactions
+    return output
+  }),
   'merkleblock': (block) => ({
     header: toHeader(block.header),
     numTransactions: block.numTransactions,

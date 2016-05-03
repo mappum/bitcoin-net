@@ -94,14 +94,19 @@ class Peer extends EventEmitter {
     socket.once('close', () => this.disconnect(new Error('Socket closed')))
     socket.on('error', this._error.bind(this))
 
+    var protocolOpts = {
+      magic: this.params.magic,
+      messages: this.params.messages
+    }
+
     var decoder = transforms.decode()
-    var protoDecoder = proto.createDecodeStream({ magic: this.params.magic })
+    var protoDecoder = proto.createDecodeStream(protocolOpts)
     protoDecoder.on('error', this._error.bind(this))
     this._decoder = debugStream(debug.rx)
     socket.pipe(protoDecoder).pipe(decoder).pipe(this._decoder)
 
     this._encoder = transforms.encode()
-    var protoEncoder = proto.createEncodeStream({ magic: this.params.magic })
+    var protoEncoder = proto.createEncodeStream(protocolOpts)
     protoEncoder.on('error', this._error.bind(this))
     var encodeDebug = debugStream(debug.tx)
     this._encoder.pipe(encodeDebug).pipe(protoEncoder).pipe(socket)
@@ -191,7 +196,7 @@ class Peer extends EventEmitter {
     }
     this.version = message
     if (message.version < this.minimumVersion) {
-      return this._error(new Error(`Peer is using an incompatible protocol version: ` +
+      return this._error(new Error('Peer is using an incompatible protocol version: ' +
         `required: >= ${this.minimumVersion}, actual: ${message.version}`))
     }
     if (this.requireBloom &&
@@ -288,7 +293,7 @@ class Peer extends EventEmitter {
     }
 
     var txIndex = {}
-    txids.forEach((txid, i) => txIndex[txid.toString('base64')] = i)
+    txids.forEach((txid, i) => { txIndex[txid.toString('base64')] = i })
     var output = new Array(txids.length)
 
     this.getBlocks([ blockHash ], opts, (err, blocks) => {
