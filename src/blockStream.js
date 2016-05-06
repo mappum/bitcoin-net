@@ -45,7 +45,6 @@ BlockStream.prototype._transform = function (block, enc, cb) {
     self._getData(this.batch, (err) => cb(err))
     this.batch = []
   } else {
-    debug(`queueing block ${this.batch.length} / ${this.batchSize}`)
     return cb(null)
   }
 }
@@ -53,7 +52,7 @@ BlockStream.prototype._transform = function (block, enc, cb) {
 BlockStream.prototype._getData = function (hashes, cb) {
   if (this.ended) return
   this.peers.getBlocks(hashes, { filtered: this.filtered }, (err, blocks) => {
-    if (err) return (cb ? cb : this._error)(err)
+    if (err) return (cb || this._error)(err)
     var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
     for (var block of blocks) onBlock.call(this, block)
     if (cb) cb(null, blocks)
@@ -78,18 +77,34 @@ BlockStream.prototype._onMerkleBlock = function (message) {
     header: message.header
   }
 
-  var hash = message.header.getHash()
   var txids = merkleProof.verify({
     flags: message.flags,
     hashes: message.hashes,
     numTransactions: message.numTransactions,
     merkleRoot: message.header.merkleRoot
   })
-  if (!txids.length) return done(null, [])
-  this.peers.getTransactions(hash, txids, done)
+  if (!txids.length) return done([])
 
-  function done (err, transactions) {
-    if (err) return self._error(err)
+  var transactions = []
+  for (var txid of txids) {
+    var hash = txid.toString('base64')
+    var tx = this.peers._txPoolMap[hash]
+    if (tx) {
+      maybeDone(tx)
+      continue
+    }
+    console.log('waiting for ' + hash)
+    this.peers.once(`tx:${hash}`, maybeDone)
+  }
+
+  function maybeDone (tx) {
+    transactions.push(tx)
+    if (transactions.length === txids.length) {
+      done(transactions)
+    }
+  }
+
+  function done (transactions) {
     block.transactions = transactions
     self._push(block)
   }
@@ -98,15 +113,16 @@ BlockStream.prototype._onMerkleBlock = function (message) {
 BlockStream.prototype._push = function (block) {
   var offset = block.height - this.bufferHeight
   this.buffer[offset] = block
-  if (!this.buffer[0]) debug(`buffering block, buffer.length=${this.buffer.length}`)
+  if (!this.buffer[0]) debug(`buffering block, height=${block.height}, buffer.length=${this.buffer.length}`)
 
   var initialLength = this.buffer.length
+  if (this.buffer[0]) var pushHeight = this.buffer[0].height
   while (this.buffer[0]) {
     this.push(this.buffer.shift())
     this.bufferHeight++
   }
   var pushed = initialLength - this.buffer.length
-  if (pushed > 0) debug(`pushed ${pushed} blocks`)
+  if (pushed > 0) debug(`pushed ${pushed} blocks, height=${pushHeight}`)
 }
 
 BlockStream.prototype.end = function () {
