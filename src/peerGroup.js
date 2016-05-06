@@ -41,14 +41,6 @@ class PeerGroup extends EventEmitter {
     this._txPool = []
     this._txPoolMap = {}
     this._txPoolPrevLength = 0
-    this._txPoolInterval = setInterval(() => {
-      var removed = this._txPool.slice(0, this._txPoolPrevLength)
-      this._txPool = this._txPool.slice(this._txPoolPrevLength)
-      for (var tx of removed) {
-        delete this._txPoolMap[tx.getHash().toString('base64')]
-      }
-      this._txPoolPrevLength = this._txPool.length
-    }, 20 * 1000)
 
     var wrtc = opts.wrtc || getBrowserRTC()
     this._exchange = exchange(params.magic.toString(16), { wrtc })
@@ -97,7 +89,7 @@ class PeerGroup extends EventEmitter {
     peer.once('error', onError)
     peer.once('disconnect', onError)
     peer.once('ready', () => {
-      if (this.closed) return socket.destroy()
+      if (this.closed) return peer.disconnect()
       peer.removeListener('error', onError)
       peer.removeListener('disconnect', onError)
       this.addPeer(peer)
@@ -222,10 +214,8 @@ class PeerGroup extends EventEmitter {
     // once we have a few, start filling peers via any random
     // peer discovery method
     if (this._connectWeb && this._params.webSeeds && this._params.webSeeds.length) {
-      var nSeeds = Math.min(
-        this._params.webSeeds.length,
-        Math.floor(this._numPeers / 2),
-        1)
+      var nSeeds = Math.max(1,
+        Math.min(this._params.webSeeds.length, Math.floor(this._numPeers / 2)))
       var i = 0
       var onPeer = () => {
         i++
@@ -248,6 +238,7 @@ class PeerGroup extends EventEmitter {
 
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
+    clearInterval(this._txPoolInterval)
     this.unaccept((err) => {
       if (err) return cb(err)
       var peers = this.peers.slice(0)
@@ -295,6 +286,10 @@ class PeerGroup extends EventEmitter {
   // manually adds a Peer
   addPeer (peer) {
     if (this.closed) throw new Error('Cannot add peers, PeerGroup is closed')
+
+    if (!this._txPoolInterval) {
+      this._txPoolInterval = setInterval(this._clearTxPool.bind(this), 20 * 1000)
+    }
 
     this.peers.push(peer)
     debug(`add peer: peers.length = ${this.peers.length}`)
@@ -379,6 +374,15 @@ class PeerGroup extends EventEmitter {
       cb(err, res, peer)
     })
     peer[method](...args)
+  }
+
+  _clearTxPool () {
+    var removed = this._txPool.slice(0, this._txPoolPrevLength)
+    this._txPool = this._txPool.slice(this._txPoolPrevLength)
+    for (var tx of removed) {
+      delete this._txPoolMap[tx.getHash().toString('base64')]
+    }
+    this._txPoolPrevLength = this._txPool.length
   }
 }
 

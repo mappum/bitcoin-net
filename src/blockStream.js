@@ -93,7 +93,6 @@ BlockStream.prototype._onMerkleBlock = function (message) {
       maybeDone(tx)
       continue
     }
-    console.log('waiting for ' + hash)
     this.peers.once(`tx:${hash}`, maybeDone)
   }
 
