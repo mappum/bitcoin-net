@@ -187,6 +187,9 @@ class Peer extends EventEmitter {
     this.on('merkleblock', (block) => {
       this.emit(`merkleblock:${block.header.getHash().toString('base64')}`, block)
     })
+    this.on('tx', (tx) => {
+      this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
+    })
   }
 
   _onVersion (message) {

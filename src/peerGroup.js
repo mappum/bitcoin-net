@@ -37,12 +37,35 @@ class PeerGroup extends EventEmitter {
     this.closed = false
     this.accepting = false
 
+    // TODO: put array/map data structure in its own module
+    this._txPool = []
+    this._txPoolMap = {}
+    this._txPoolPrevLength = 0
+    this._txPoolInterval = setInterval(() => {
+      var removed = this._txPool.slice(0, this._txPoolPrevLength)
+      this._txPool = this._txPool.slice(this._txPoolPrevLength)
+      for (var tx of removed) {
+        delete this._txPoolMap[tx.getHash().toString('base64')]
+      }
+      this._txPoolPrevLength = this._txPool.length
+    }, 20 * 1000)
+
     var wrtc = opts.wrtc || getBrowserRTC()
     this._exchange = exchange(params.magic.toString(16), { wrtc })
     this._exchange.on('error', this._error.bind(this))
     this._exchange.on('peer', (peer) => {
       if (!peer.incoming) return
       this._onConnection(null, peer)
+    })
+
+    this.on('block', (block) => {
+      this.emit(`block:${block.header.getHash().toString('base64')}`, block)
+    })
+    this.on('merkleblock', (block) => {
+      this.emit(`merkleblock:${block.header.getHash().toString('base64')}`, block)
+    })
+    this.on('tx', (tx) => {
+      this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
     })
 
     this._onMessage = this._onMessage.bind(this)
@@ -283,6 +306,14 @@ class PeerGroup extends EventEmitter {
 
     peer.on('message', this._onMessage)
 
+    peer.on('tx', (tx) => {
+      var hash = tx.getHash().toString('base64')
+      if (!this._txPool[hash]) {
+        this._txPoolMap[hash] = tx
+        this._txPool.push(tx)
+      }
+    })
+
     peer.once('disconnect', (err) => {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
@@ -333,15 +364,8 @@ class PeerGroup extends EventEmitter {
 
   // calls a method on a random peer,
   // and retries on another peer if it times out
-  _request (method) {
-    var cb
-    var args
-    for (var i = 1; i < arguments.length - 1; i++) {
-      cb = arguments[arguments.length - i]
-      if (!cb) continue
-      args = Array.prototype.slice.call(arguments, 1, arguments.length - i)
-      break
-    }
+  _request (method, ...args) {
+    var cb = args.pop()
     var peer = this.randomPeer()
     args.push((err, res) => {
       if (this.closed) return
@@ -350,12 +374,11 @@ class PeerGroup extends EventEmitter {
         debug(`peer request "${method}" timed out, disconnecting`)
         peer.disconnect(err)
         this.emit('requestError', err)
-        var allArgs = Array.prototype.slice.call(arguments, 0)
-        return this._request.apply(this, allArgs)
+        return this._request(...arguments)
       }
       cb(err, res, peer)
     })
-    peer[method].apply(peer, args)
+    peer[method](...args)
   }
 }
 
