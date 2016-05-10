@@ -47,7 +47,6 @@ BlockStream.prototype._transform = function (block, enc, cb) {
     this._sendBatch(cb)
   } else {
     this.batchTimeout = setTimeout(() => {
-      debug(`blockstream header timeout, sending batch. timeout=${this.timeout}ms, batch.length=${this.batch.length}`)
       this._sendBatch((err) => {
         if (err) this._error(err)
       })
@@ -57,7 +56,6 @@ BlockStream.prototype._transform = function (block, enc, cb) {
 }
 
 BlockStream.prototype._sendBatch = function (cb) {
-  debug(`sending getdata, size=${this.batchSize}`)
   this._getData(this.batch, (err) => cb(err))
   this.batch = []
 }
@@ -134,7 +132,6 @@ BlockStream.prototype._push = function (block) {
     this.bufferHeight++
   }
   var pushed = initialLength - this.buffer.length
-  if (pushed > 0) debug(`pushed ${pushed} blocks, height=${pushHeight}`)
 }
 
 BlockStream.prototype.end = function () {
