@@ -14,12 +14,15 @@ var BlockStream = module.exports = function (peers, opts) {
   this.peers = peers
   this.batchSize = opts.batchSize || 64
   this.filtered = opts.filtered
+  this.timeout = opts.timeout || 2 * 1000
 
   this.batch = []
   this.height = null
   this.buffer = []
   this.bufferHeight = null
   this.ended = false
+
+  this.batchTimeout = null
 }
 util.inherits(BlockStream, Transform)
 
@@ -28,7 +31,6 @@ BlockStream.prototype._error = function (err) {
 }
 
 BlockStream.prototype._transform = function (block, enc, cb) {
-  var self = this
   if (this.ended) return
 
   if (this.height == null) {
@@ -36,17 +38,28 @@ BlockStream.prototype._transform = function (block, enc, cb) {
   }
 
   // buffer block hashes until we have `batchSize`, then make a `getdata`
-  // request with all of them
-  // TODO: make request with unfilled batch if block is at end of chain
+  // request with all of them once the batch fills up, or if we don't receive
+  // any headers for a certain amount of time (`timeout` option)
   var hash = block.header.getHash()
   this.batch.push(hash)
+  if (this.batchTimeout) clearTimeout(this.batchTimeout)
   if (this.batch.length >= this.batchSize) {
-    debug(`sending getdata, size=${this.batchSize}`)
-    self._getData(this.batch, (err) => cb(err))
-    this.batch = []
+    this._sendBatch(cb)
   } else {
-    return cb(null)
+    this.batchTimeout = setTimeout(() => {
+      debug(`blockstream header timeout, sending batch. timeout=${this.timeout}ms, batch.length=${this.batch.length}`)
+      this._sendBatch((err) => {
+        if (err) this._error(err)
+      })
+    }, this.timeout)
+    cb(null)
   }
+}
+
+BlockStream.prototype._sendBatch = function (cb) {
+  debug(`sending getdata, size=${this.batchSize}`)
+  this._getData(this.batch, (err) => cb(err))
+  this.batch = []
 }
 
 BlockStream.prototype._getData = function (hashes, cb) {
