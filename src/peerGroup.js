@@ -59,8 +59,6 @@ class PeerGroup extends EventEmitter {
     this.on('tx', (tx) => {
       this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
     })
-
-    this._onMessage = this._onMessage.bind(this)
   }
 
   _error (err) {
@@ -191,11 +189,6 @@ class PeerGroup extends EventEmitter {
     for (var i = 0; i < n; i++) this._connectPeer()
   }
 
-  _onMessage (message) {
-    this.emit('message', message)
-    this.emit(message.command, message.payload)
-  }
-
   // sends a message to all peers
   send (command, payload, assert) {
     assert = assert != null ? assert : true
@@ -299,7 +292,11 @@ class PeerGroup extends EventEmitter {
       disconnectPeer.disconnect(new Error('PeerGroup over limit'))
     }
 
-    peer.on('message', this._onMessage)
+    var onMessage = (message) => {
+      this.emit('message', message, peer)
+      this.emit(message.command, message.payload, peer)
+    }
+    peer.on('message', onMessage)
 
     peer.on('tx', (tx) => {
       var hash = tx.getHash().toString('base64')
@@ -312,7 +309,7 @@ class PeerGroup extends EventEmitter {
     peer.once('disconnect', (err) => {
       var index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
-      peer.removeListener('message', this._onMessage)
+      peer.removeListener('message', onMessage)
       debug(`peer disconnect, peer.length = ${this.peers.length}, reason=${err}\n${err.stack}`)
       if (this.connecting) this._fillPeers()
       this.emit('disconnect', peer, err)
