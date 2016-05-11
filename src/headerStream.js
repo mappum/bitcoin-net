@@ -1,6 +1,7 @@
 var Transform = require('stream').Transform
 var util = require('util')
 var async = require('async')
+var debug = require('debug')('bitcoin-net:headerstream')
 var INV = require('bitcoin-protocol').constants.inventory
 
 var HeaderStream = module.exports = function (peers, opts) {
@@ -26,7 +27,6 @@ HeaderStream.prototype._error = function (err) {
 }
 
 HeaderStream.prototype._transform = function (locator, enc, cb) {
-  console.log('headerstream locator: ' + locator[locator.length-1].toString('hex'))
   this.lastLocator = locator
   if (this.reachedTip) return cb(null)
   this._getHeaders(locator, cb)
@@ -85,7 +85,8 @@ HeaderStream.prototype._onTip = function (locator, peer) {
       cb(null)
     })
   }, (err) => {
-    if (err) return
+    if (err) return debug('Inconsistent responses, not emitting "tip" event')
+    debug('Reached chain tip, now listening for relayed blocks')
     this.reachedTip = true
     this.emit('tip')
     if (!this.done) this._subscribeToInvs()
