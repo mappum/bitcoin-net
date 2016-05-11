@@ -382,18 +382,3 @@ class PeerGroup extends EventEmitter {
     this._txPoolPrevLength = this._txPool.length
   }
 }
-
-/*
-peer.on('getdata', function (message) {
-  message.inventory.forEach(function (inv) {
-    var hash = inv.hash.toString('base64')
-    var item = self.inventory[hash]
-    if (!item) return
-    // TODO: handle types other than transactions
-    var txMessage = peer.messages.Transaction(item.value)
-    peer.sendMessage(txMessage)
-  })
-})
-var invMessage = peer.messages.Inventory(this.getInventory())
-peer.sendMessage(invMessage)
-*/

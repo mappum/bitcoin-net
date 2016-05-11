@@ -124,14 +124,10 @@ BlockStream.prototype._push = function (block) {
   var offset = block.height - this.bufferHeight
   this.buffer[offset] = block
   if (!this.buffer[0]) debug(`buffering block, height=${block.height}, buffer.length=${this.buffer.length}`)
-
-  var initialLength = this.buffer.length
-  if (this.buffer[0]) var pushHeight = this.buffer[0].height
   while (this.buffer[0]) {
     this.push(this.buffer.shift())
     this.bufferHeight++
   }
-  var pushed = initialLength - this.buffer.length
 }
 
 BlockStream.prototype.end = function () {
