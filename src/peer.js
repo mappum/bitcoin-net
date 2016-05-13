@@ -245,7 +245,7 @@ class Peer extends EventEmitter {
   }
 
   _getTimeout () {
-    return MIN_TIMEOUT + this.latency * 4
+    return MIN_TIMEOUT + this.latency * 10
   }
 
   getBlocks (hashes, opts, cb) {
