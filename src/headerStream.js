@@ -94,12 +94,15 @@ HeaderStream.prototype._onTip = function (locator, peer) {
 }
 
 HeaderStream.prototype._subscribeToInvs = function () {
-  var lastInv = null
+  var hashes = []
   this.peers.on('inv', (inv, peer) => {
     for (let item of inv) {
       if (item.type !== INV.MSG_BLOCK) continue
-      if (lastInv && item.hash.compare(lastInv) === 0) continue
-      lastInv = item.hash
+      for (let hash of hashes) {
+        if (hash.equals(item.hash)) return
+      }
+      hashes.push(item.hash)
+      if (hashes.length > 8) hashes.shift()
       this._getHeaders(this.lastLocator, peer)
     }
   })
