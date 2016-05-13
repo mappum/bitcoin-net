@@ -25,7 +25,8 @@ var MIN_TIMEOUT = 2000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 1,
-  'NODE_BLOOM': 1 << 2
+  'NODE_BLOOM': 1 << 2,
+  'NODE_WITNESS': 1 << 3
 }
 function getServices (buf) {
   var services = {}
