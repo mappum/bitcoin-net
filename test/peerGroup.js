@@ -142,6 +142,7 @@ test('peer methods', (t) => {
         cb()
       })
     }, () => t.end()))
+    chain.createLocatorStream().pipe(stream)
   })
 
   t.test('createBlockStream', (t) => {
@@ -159,7 +160,7 @@ test('peer methods', (t) => {
       if (lastHeight >= 100) stream.end()
     })
     stream.on('end', () => t.end())
-    chain.createReadStream({ from: chain.genesis.hash }).pipe(stream)
+    chain.createReadStream().pipe(stream)
   })
 
   t.end()
