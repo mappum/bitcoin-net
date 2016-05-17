@@ -46,15 +46,14 @@ HeaderStream.prototype._getHeaders = function (locator, peer, cb) {
     if (err) return this._error(err)
     this.getting = false
     if (headers.length === 0) {
-      this._onTip(locator, peer)
+      this._onTip(peer)
       if (cb) cb(null)
       return
     }
     headers.peer = peer
     this.push(headers)
     if (headers.length < 2000) {
-      var lastHash = headers[headers.length - 1].getHash()
-      this._onTip([ lastHash ], peer)
+      this._onTip(peer)
       if (cb) cb(null)
       return
     }
@@ -72,7 +71,7 @@ HeaderStream.prototype.end = function () {
   this.push(null)
 }
 
-HeaderStream.prototype._onTip = function (locator, peer) {
+HeaderStream.prototype._onTip = function (peer) {
   if (this.reachedTip) return
   debug('Reached chain tip, now listening for relayed blocks')
   this.reachedTip = true
