@@ -1,6 +1,5 @@
 var Transform = require('stream').Transform
 var util = require('util')
-var async = require('async')
 var debug = require('debug')('bitcoin-net:headerstream')
 var INV = require('bitcoin-protocol').constants.inventory
 
@@ -43,19 +42,25 @@ HeaderStream.prototype._getHeaders = function (locator, peer, cb) {
     stop: this.stop,
     timeout: this.timeout
   }, (err, headers, peer) => {
-    if (this.done) return
+    if (this.done) return cb(null)
     if (err) return this._error(err)
     this.getting = false
-    if (headers.length === 0) return this._onTip(locator, peer)
+    if (headers.length === 0) {
+      this._onTip(locator, peer)
+      if (cb) cb(null)
+      return
+    }
     headers.peer = peer
     this.push(headers)
     if (headers.length < 2000) {
       var lastHash = headers[headers.length - 1].getHash()
-      return this._onTip([ lastHash ], peer)
+      this._onTip([ lastHash ], peer)
+      if (cb) cb(null)
+      return
     }
     if (this.stop &&
     headers[headers.length - 1].getHash().compare(this.stop) === 0) {
-      return this.end()
+      this.end()
     }
     if (cb) cb(null)
   })
@@ -69,28 +74,10 @@ HeaderStream.prototype.end = function () {
 
 HeaderStream.prototype._onTip = function (locator, peer) {
   if (this.reachedTip) return
-
-  // first, verify we are actually at the tip by repeating the request to
-  // other peers. this is so peers can't DoS our sync by sending an empty
-  // 'headers' message
-  var otherPeers = this.peers.peers.filter((peer2) => peer2 !== peer)
-  if (otherPeers.length === 0) return
-  otherPeers = otherPeers.slice(0, Math.max(1, otherPeers.length / 2))
-  async.each(otherPeers, (peer, cb) => {
-    peer.getHeaders(locator, { timeout: this.timeout }, (err, headers) => {
-      if (err) return cb(null) // ignore errors
-      if (headers.length > 0) {
-        return cb(new Error('Got a non-empty headers response'))
-      }
-      cb(null)
-    })
-  }, (err) => {
-    if (err) return debug('Inconsistent responses, not emitting "tip" event')
-    debug('Reached chain tip, now listening for relayed blocks')
-    this.reachedTip = true
-    this.emit('tip')
-    if (!this.done) this._subscribeToInvs()
-  })
+  debug('Reached chain tip, now listening for relayed blocks')
+  this.reachedTip = true
+  this.emit('tip')
+  if (!this.done) this._subscribeToInvs()
 }
 
 HeaderStream.prototype._subscribeToInvs = function () {
