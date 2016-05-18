@@ -346,8 +346,8 @@ class PeerGroup extends EventEmitter {
     this._request('getBlocks', hashes, opts, cb)
   }
 
-  getTransactions (blockHash, txids, cb) {
-    this._request('getTransactions', blockHash, txids, cb)
+  getTransactions (blockHash, txids, opts, cb) {
+    this._request('getTransactions', blockHash, txids, opts, cb)
   }
 
   getHeaders (locator, opts, cb) {
