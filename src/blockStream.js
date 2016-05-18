@@ -2,13 +2,14 @@ var Transform = require('stream').Transform
 var util = require('util')
 var merkleProof = require('bitcoin-merkle-proof')
 var debug = require('debug')('bitcoin-net:blockstream')
+var wrapEvents = require('event-cleanup')
 
 var BlockStream = module.exports = function (peers, opts) {
   if (!(this instanceof BlockStream)) return new BlockStream(peers, opts)
   if (!peers) throw new Error('"peers" argument is required for BlockStream')
   Transform.call(this, { objectMode: true })
 
-  debug(`created BlockStream: ${opts}`)
+  debug(`created BlockStream: ${JSON.stringify(opts, null, '  ')}`)
 
   opts = opts || {}
   this.peers = peers
@@ -58,13 +59,13 @@ BlockStream.prototype._sendBatch = function (cb) {
   var batch = this.batch
   this.batch = []
   var hashes = batch.map((block) => block.header.getHash())
-  this.peers.getBlocks(hashes, { filtered: this.filtered }, (err, blocks) => {
+  this.peers.getBlocks(hashes, { filtered: this.filtered }, (err, blocks, peer) => {
     if (err) return cb(err)
     var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
     blocks.forEach((block, i) => {
       block = Object.assign({}, batch[i], block)
       if (batch[i].operation) block.operation = batch[i].operation
-      onBlock.call(this, block)
+      onBlock.call(this, block, peer)
     })
     cb(null)
   })
@@ -75,7 +76,7 @@ BlockStream.prototype._onBlock = function (block) {
   this._push(block)
 }
 
-BlockStream.prototype._onMerkleBlock = function (block) {
+BlockStream.prototype._onMerkleBlock = function (block, peer) {
   if (this.ended) return
   var self = this
 
@@ -85,27 +86,39 @@ BlockStream.prototype._onMerkleBlock = function (block) {
     numTransactions: block.numTransactions,
     merkleRoot: block.header.merkleRoot
   })
-  if (!txids.length) return done([])
+  if (txids.length === 0) return done([])
 
   var transactions = []
-  for (var txid of txids) {
+  var remaining = txids.length
+
+  var timeout = peer._getTimeout()
+  var txTimeout = setTimeout(() => {
+    this.peers.getTransactions(txids, (err, transactions) => {
+      if (err) return this.emit('error', err)
+      done(transactions)
+    })
+  }, timeout)
+
+  var events = wrapEvents(this.peers)
+  txids.forEach((txid, i) => {
     var hash = txid.toString('base64')
     var tx = this.peers._txPoolMap[hash]
     if (tx) {
-      maybeDone(tx)
-      continue
+      maybeDone(tx, i)
+      return
     }
-    this.peers.once(`tx:${hash}`, maybeDone)
-  }
+    events.once(`tx:${hash}`, (tx) => maybeDone(tx, i))
+  })
 
-  function maybeDone (tx) {
-    transactions.push(tx)
-    if (transactions.length === txids.length) {
-      done(transactions)
-    }
+  function maybeDone (tx, i) {
+    transactions[i] = tx
+    remaining--
+    if (remaining === 0) done(transactions)
   }
 
   function done (transactions) {
+    clearTimeout(txTimeout)
+    if (events) events.removeAll()
     block.transactions = transactions
     self._push(block)
   }
