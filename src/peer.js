@@ -290,6 +290,12 @@ class Peer extends EventEmitter {
   }
 
   getTransactions (blockHash, txids, opts, cb) {
+    if (Array.isArray(blockHash)) {
+      cb = opts
+      opts = txids
+      txids = blockHash
+      blockHash = null
+    }
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
@@ -299,17 +305,54 @@ class Peer extends EventEmitter {
     txids.forEach((txid, i) => { txIndex[txid.toString('base64')] = i })
     var output = new Array(txids.length)
 
-    this.getBlocks([ blockHash ], opts, (err, blocks) => {
-      if (err) return cb(err)
-      for (var tx of blocks[0].transactions) {
+    if (blockHash) {
+      this.getBlocks([ blockHash ], opts, (err, blocks) => {
+        if (err) return cb(err)
+        for (var tx of blocks[0].transactions) {
+          var id = tx.getHash().toString('base64')
+          var i = txIndex[id]
+          if (i == null) continue
+          delete txIndex[id]
+          output[i] = tx
+        }
+        cb(null, output)
+      })
+    } else {
+      if (opts.timeout == null) opts.timeout = this._getTimeout()
+      // TODO: make a function for all these similar timeout request methods
+
+      var timeout
+      var remaining = txids.length
+      var onTx = (tx) => {
         var id = tx.getHash().toString('base64')
         var i = txIndex[id]
-        if (i == null) continue
-        delete txIndex[id]
         output[i] = tx
+        remaining--
+        if (remaining > 0) return
+        if (timeout != null) clearTimeout(timeout)
+        cb(null, output)
       }
-      cb(null, output)
-    })
+      txids.forEach((txid, i) => {
+        var hash = txid.toString('base64')
+        this.once(`tx:${hash}`, onTx)
+      })
+
+      var inventory = txids.map((hash) => ({ type: INV.MSG_TX, hash }))
+      this.send('getdata', inventory)
+
+      if (!opts.timeout) return
+      timeout = setTimeout(() => {
+        debug(`getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`)
+        // TODO: create eventemitter wrapper to easily clean up listeners
+        txids.forEach((txid, i) => {
+          var hash = txid.toString('base64')
+          this.removeListener(`tx:${hash}`, onTx)
+        })
+        var err = new Error('Request timed out')
+        err.timeout = true
+        cb(err)
+      }, opts.timeout)
+    }
   }
 
   getHeaders (locator, opts, cb) {
