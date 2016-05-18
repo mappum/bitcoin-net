@@ -1,15 +1,16 @@
 'use strict'
 
+var crypto = require('crypto')
 var Debug = require('debug')
 var debug = Debug('bitcoin-net:peer')
 debug.rx = Debug('bitcoin-net:messages:rx')
 debug.tx = Debug('bitcoin-net:messages:tx')
-var through = require('through2').obj
-var crypto = require('crypto')
-var EventEmitter = require('events')
 var proto = require('bitcoin-protocol')
 var INV = proto.constants.inventory
 var u = require('bitcoin-util')
+var wrapEvents = require('event-cleanup')
+var through = require('through2').obj
+var EventEmitter = require('events')
 var pkg = require('../package.json')
 var transforms = require('./protocolTransforms.js')
 var utils = require('./utils.js')
@@ -256,19 +257,18 @@ class Peer extends EventEmitter {
     if (opts.timeout == null) opts.timeout = this._getTimeout()
 
     var timeout
+    var events = wrapEvents(this)
     var output = new Array(hashes.length)
     var remaining = hashes.length
-    var listeners = []
     hashes.forEach((hash, i) => {
-      var onBlock = (block) => {
+      var event = `${opts.filtered ? 'merkle' : ''}block:${hash.toString('base64')}`
+      events.once(event, (block) => {
         output[i] = block
         remaining--
         if (remaining > 0) return
         if (timeout != null) clearTimeout(timeout)
         cb(null, output)
-      }
-      listeners.push(onBlock)
-      this.once(`${opts.filtered ? 'merkle' : ''}block:${hash.toString('base64')}`, onBlock)
+      })
     })
 
     var inventory = hashes.map((hash) => ({
@@ -280,9 +280,7 @@ class Peer extends EventEmitter {
     if (!opts.timeout) return
     timeout = setTimeout(() => {
       debug(`getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`)
-      hashes.forEach((hash, i) => {
-        this.removeListener(`${opts.filtered ? 'merkle' : ''}block:${hash.toString('base64')}`, listeners[i])
-      })
+      events.removeAll()
       var error = new Error('Request timed out')
       error.timeout = true
       cb(error)
@@ -301,11 +299,11 @@ class Peer extends EventEmitter {
       opts = {}
     }
 
-    var txIndex = {}
-    txids.forEach((txid, i) => { txIndex[txid.toString('base64')] = i })
     var output = new Array(txids.length)
 
     if (blockHash) {
+      var txIndex = {}
+      txids.forEach((txid, i) => { txIndex[txid.toString('base64')] = i })
       this.getBlocks([ blockHash ], opts, (err, blocks) => {
         if (err) return cb(err)
         for (var tx of blocks[0].transactions) {
@@ -323,18 +321,16 @@ class Peer extends EventEmitter {
 
       var timeout
       var remaining = txids.length
-      var onTx = (tx) => {
-        var id = tx.getHash().toString('base64')
-        var i = txIndex[id]
-        output[i] = tx
-        remaining--
-        if (remaining > 0) return
-        if (timeout != null) clearTimeout(timeout)
-        cb(null, output)
-      }
+      var events = wrapEvents(this)
       txids.forEach((txid, i) => {
         var hash = txid.toString('base64')
-        this.once(`tx:${hash}`, onTx)
+        this.once(`tx:${hash}`, (tx) => {
+          output[i] = tx
+          remaining--
+          if (remaining > 0) return
+          if (timeout != null) clearTimeout(timeout)
+          cb(null, output)
+        })
       })
 
       var inventory = txids.map((hash) => ({ type: INV.MSG_TX, hash }))
@@ -343,11 +339,7 @@ class Peer extends EventEmitter {
       if (!opts.timeout) return
       timeout = setTimeout(() => {
         debug(`getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`)
-        // TODO: create eventemitter wrapper to easily clean up listeners
-        txids.forEach((txid, i) => {
-          var hash = txid.toString('base64')
-          this.removeListener(`tx:${hash}`, onTx)
-        })
+        events.removeAll()
         var err = new Error('Request timed out')
         err.timeout = true
         cb(err)
