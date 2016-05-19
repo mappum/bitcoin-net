@@ -4,7 +4,8 @@
   "description": "Bitcoin P2P networking tht works in Node and the browser",
   "main": "index.js",
   "scripts": {
-    "test": "standard src test index.js && tap -Rspec -t300 --cov test/*.js",
+    "test": "standard src test index.js && nyc tape test/*.js | faucet; nyc report",
+    "test-browser": "npm run build && test/browser.sh; npm run source",
     "build": "rm -rf lib && babel --presets es2015 src -d lib",
     "source": "rm -rf lib && ln -s src lib",
     "prepublish": "npm run build",
@@ -32,18 +33,23 @@
     "once": "^1.3.3",
     "peer-exchange": "^0.4.0",
     "pumpify": "^1.3.4",
+    "setimmediate": "^1.0.4",
     "through2": "^2.0.1"
   },
   "devDependencies": {
     "babel-cli": "^6.5.1",
     "babel-preset-es2015": "^6.5.0",
     "blockchain-spv": "^2.0.0",
+    "envify": "^3.4.0",
+    "faucet": "0.0.1",
     "flush-write-stream": "^1.0.0",
     "levelup": "^1.3.1",
     "memdown": "^1.1.2",
+    "nyc": "^6.4.4",
     "standard": "^7.0.1",
-    "tap": "^5.7.0",
-    "webcoin-bitcoin": "^2.0.0"
+    "tape": "^4.5.1",
+    "webcoin-bitcoin": "^2.0.0",
+    "zuul": "^3.10.1"
   },
   "directories": {
     "test": "test"
@@ -55,5 +61,10 @@
   "bugs": {
     "url": "https://github.com/mappum/bitcoin-net/issues"
   },
-  "homepage": "https://github.com/mappum/bitcoin-net#readme"
+  "homepage": "https://github.com/mappum/bitcoin-net#readme",
+  "browserify": {
+    "transform": [
+      "envify"
+    ]
+  }
 }

@@ -1,4 +1,4 @@
-var tap = require('tap')
+var tape = require('tape')
 var params = require('webcoin-bitcoin')
 var u = require('bitcoin-util')
 var Block = require('bitcoinjs-lib').Block
@@ -17,7 +17,7 @@ var test = (name, opts, f) => {
   }
   // really high default timeout
   if (opts.timeout == null) opts.timeout = 5 * 60 * 1000
-  return tap.test(name, opts, f)
+  return tape(name, opts, f)
 }
 
 test('PeerGroup constructor', (t) => {
@@ -48,7 +48,7 @@ test('PeerGroup constructor', (t) => {
   t.end()
 })
 
-var numPeers = 8
+var numPeers = 2
 var pg
 test('connect', (t) => {
   // NOTE: these tests connects to real nodes

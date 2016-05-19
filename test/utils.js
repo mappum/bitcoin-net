@@ -1,4 +1,4 @@
-var test = require('tap').test
+var test = require('tape')
 var utils = require('../lib/utils.js')
 
 test('getRandom', (t) => {
