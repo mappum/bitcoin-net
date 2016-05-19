@@ -13,13 +13,16 @@ class Bridge extends PeerGroup {
   _onConnection (err, client) {
     if (err) {
       this.emit('connectError', err, null)
+      return
     }
+    if (!client.incoming) return
     this.emit('connection', client)
     this._connectPeer((err, bridgePeer) => {
       if (err) {
         this.emit('connectError', err)
-        return this._onConnection(null, client)
+        return setImmediate(() => this._onConnection(null, client))
       }
+      debug(`connected to TCP peer for bridging: ${bridgePeer.remoteAddress}`)
       var onError = (err) => {
         client.destroy()
         bridgePeer.destroy()
