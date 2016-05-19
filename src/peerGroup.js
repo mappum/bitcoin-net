@@ -101,7 +101,8 @@ class PeerGroup extends EventEmitter {
   }
 
   // connects to a new peer, via a randomly selected peer discovery method
-  _connectPeer () {
+  _connectPeer (cb) {
+    cb = cb || this._onConnection.bind(this)
     if (this.closed) return
     var getPeerArray = []
     if (!process.browser) {
@@ -124,7 +125,7 @@ class PeerGroup extends EventEmitter {
     }
     var getPeer = utils.getRandom(getPeerArray)
     debug(`_connectPeer: getPeer = ${getPeer.name}`)
-    getPeer(this._onConnection.bind(this))
+    getPeer(cb)
   }
 
   // connects to a random TCP peer via a random DNS seed
