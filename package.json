@@ -48,7 +48,7 @@
     "nyc": "^6.4.4",
     "standard": "^7.0.1",
     "tape": "^4.5.1",
-    "webcoin-bitcoin": "^2.0.0",
+    "webcoin-bitcoin": "^3.0.0",
     "zuul": "^3.10.1"
   },
   "directories": {
