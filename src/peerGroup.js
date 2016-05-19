@@ -174,7 +174,9 @@ class PeerGroup extends EventEmitter {
       if (typeof seed === 'string') {
         var url = utils.parseAddress(seed)
         var port = url.port || this._params.defaultWebPort || DEFAULT_PXP_PORT
-        seed = { transport: 'websocket', address: url.hostname, opts: { port } }
+        var secure = url.protocol && url.protocol === 'wss:'
+        var opts = { port, secure }
+        seed = { transport: 'websocket', address: url.hostname, opts }
       }
       debug(`connecting to web seed: ${JSON.stringify(seed, null, '  ')}`)
       this._exchange.connect(seed.transport, seed.address, seed.opts, (err, socket) => {
