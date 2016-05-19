@@ -259,14 +259,17 @@ class PeerGroup extends EventEmitter {
   }
 
   // accept incoming connections through websocket and webrtc (if supported)
-  accept (port, cb) {
+  accept (wsOpts, cb) {
     if (typeof port === 'function') {
-      cb = port
-      port = null
+      cb = wsOpts
+      wsOpts = {}
+    } else if (typeof wsOpts === 'number') {
+      wsOpts = { port: wsOpts }
     }
-    port = this.websocketPort = port || DEFAULT_PXP_PORT
+    if (!wsOpts.port) wsOpts.port = DEFAULT_PXP_PORT
+    this.websocketPort = wsOpts.port
     cb = cb || ((err) => { if (err) this._error(err) })
-    this._exchange.accept('websocket', { port }, (err) => {
+    this._exchange.accept('websocket', wsOpts, (err) => {
       if (err) return cb(err)
       this._exchange.accept('webrtc', (err) => {
         // ignore errors about not having a webrtc transport
