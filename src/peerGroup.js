@@ -13,6 +13,7 @@ var HeaderStream = require('./headerStream.js')
 var TransactionStream = require('./transactionStream.js')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
+if (!setImmediate) require('setimmediate')
 
 var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
@@ -43,6 +44,9 @@ class PeerGroup extends EventEmitter {
     this._txPoolPrevLength = 0
 
     var wrtc = opts.wrtc || getBrowserRTC()
+    var envSeeds = process.env.WEB_SEED
+      ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
+    this._webSeeds = this._params.webSeeds.concat(envSeeds)
     this._exchange = exchange(params.magic.toString(16), { wrtc })
     this._exchange.on('error', this._error.bind(this))
     this._exchange.on('peer', (peer) => {
@@ -71,7 +75,9 @@ class PeerGroup extends EventEmitter {
       if (socket) socket.destroy()
       debug(`discovery connection error: ${err.message}`)
       this.emit('connectError', err, null)
-      if (this.connecting) this._connectPeer()
+      if (this.connecting) {
+        setImmediate(this._connectPeer.bind(this))
+      }
       return
     }
     if (this.closed) return socket.destroy()
@@ -163,14 +169,19 @@ class PeerGroup extends EventEmitter {
 
   // connects to the peer-exchange peers provided by the params
   _connectWebSeeds () {
-    for (var seed of this._params.webSeeds) {
+    this._webSeeds.forEach((seed) => {
       if (typeof seed === 'string') {
         var url = utils.parseAddress(seed)
         var port = url.port || this._params.defaultWebPort || DEFAULT_PXP_PORT
         seed = { transport: 'websocket', address: url.hostname, opts: { port } }
       }
-      this._exchange.connect(seed.transport, seed.address, seed.opts, this._onConnection.bind(this))
-    }
+      debug(`connecting to web seed: ${JSON.stringify(seed, null, '  ')}`)
+      this._exchange.connect(seed.transport, seed.address, seed.opts, (err, socket) => {
+        debug(err ? `error connecting to web seed: ${JSON.stringify(seed, null, '  ')} ${err.stack}`
+          : `connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
+        this._onConnection(err, socket)
+      })
+    })
   }
 
   _assertPeers () {
@@ -206,9 +217,9 @@ class PeerGroup extends EventEmitter {
     // first, try to connect to web seeds so we can get web peers
     // once we have a few, start filling peers via any random
     // peer discovery method
-    if (this._connectWeb && this._params.webSeeds && this._params.webSeeds.length) {
+    if (this._connectWeb && this._params.webSeeds && this._webSeeds.length) {
       var nSeeds = Math.max(1,
-        Math.min(this._params.webSeeds.length, Math.floor(this._numPeers / 2)))
+        Math.min(this._webSeeds.length, Math.floor(this._numPeers / 2)))
       var i = 0
       var onPeer = () => {
         i++
