@@ -4,10 +4,10 @@
   "description": "Bitcoin P2P networking tht works in Node and the browser",
   "main": "index.js",
   "scripts": {
-    "test": "standard src test index.js && nyc tape test/*.js | faucet && nyc report",
+    "test": "standard src test index.js && nyc tape test/build/*.js | faucet && nyc report",
     "test-browser": "npm run build && test/browser.sh && npm run source",
-    "build": "rm -rf lib && babel --presets es2015 src -d lib",
-    "source": "rm -rf lib && ln -s src lib",
+    "build": "rm -rf lib && babel --presets es2015 src -d lib && rm -rf test/build && babel --presets es2015 test/src -d test/build",
+    "source": "rm -rf lib && ln -s src lib && rm -rf test/build && ln -s test/src test/build",
     "prepublish": "npm run build",
     "publish": "npm run source"
   },

@@ -1,5 +1,5 @@
 var test = require('tape')
-var utils = require('../lib/utils.js')
+var utils = require('../../lib/utils.js')
 
 test('getRandom', (t) => {
   var array = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
