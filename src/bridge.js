@@ -2,11 +2,12 @@
 
 var debug = require('debug')('bitcoin-net:bridge')
 var PeerGroup = require('./peerGroup.js')
+var assign = require('object-assign')
 
 module.exports =
 class Bridge extends PeerGroup {
   constructor (params, opts) {
-    opts = Object.assign({ connectWeb: false }, opts)
+    opts = assign({ connectWeb: false }, opts)
     super(params, opts)
   }
 

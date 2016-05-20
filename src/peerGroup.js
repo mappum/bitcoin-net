@@ -8,6 +8,7 @@ var exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
 var pumpify = require('pumpify').obj
+var assign = require('object-assign')
 var BlockStream = require('./blockStream.js')
 var HeaderStream = require('./headerStream.js')
 var TransactionStream = require('./transactionStream.js')
@@ -81,7 +82,7 @@ class PeerGroup extends EventEmitter {
       return
     }
     if (this.closed) return socket.destroy()
-    var opts = Object.assign({ socket }, this.peerOpts)
+    var opts = assign({ socket }, this.peerOpts)
     var peer = new Peer(this._params, opts)
     var onError = (err) => {
       err = err || new Error('Connection error')

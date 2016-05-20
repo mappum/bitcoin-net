@@ -30,6 +30,7 @@
     "debug": "^2.2.0",
     "event-cleanup": "^1.0.3",
     "get-browser-rtc": "^1.0.2",
+    "object-assign": "^4.1.0",
     "once": "^1.3.3",
     "peer-exchange": "^0.5.1",
     "pumpify": "^1.3.4",

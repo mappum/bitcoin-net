@@ -3,6 +3,7 @@ var util = require('util')
 var merkleProof = require('bitcoin-merkle-proof')
 var debug = require('debug')('bitcoin-net:blockstream')
 var wrapEvents = require('event-cleanup')
+var assign = require('object-assign')
 
 var BlockStream = module.exports = function (peers, opts) {
   if (!(this instanceof BlockStream)) return new BlockStream(peers, opts)
@@ -63,7 +64,7 @@ BlockStream.prototype._sendBatch = function (cb) {
     if (err) return cb(err)
     var onBlock = this.filtered ? this._onMerkleBlock : this._onBlock
     blocks.forEach((block, i) => {
-      block = Object.assign({}, batch[i], block)
+      block = assign({}, batch[i], block)
       if (batch[i].operation) block.operation = batch[i].operation
       onBlock.call(this, block, peer)
     })

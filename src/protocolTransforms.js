@@ -1,12 +1,13 @@
 var through = require('through2').obj
 var BN = require('bn.js')
 var reverse = require('buffer-reverse')
+var assign = require('object-assign')
 var bitcoinjs = require('bitcoinjs-lib')
 var Block = bitcoinjs.Block
 var Transaction = bitcoinjs.Transaction
 
 var fromTransaction = (tx) => {
-  var output = Object.assign({}, tx)
+  var output = assign({}, tx)
   output.outs = output.outs.map((out) => {
     if (out.value && out.valueBuffer) {
       throw new Error('Transaction output has both "value" and "valueBuffer"')
@@ -16,7 +17,7 @@ var fromTransaction = (tx) => {
       throw new Error('Transaction output values must be a BN.js number or ' +
         'a Buffer')
     }
-    out = Object.assign({}, out)
+    out = assign({}, out)
     if (out.value) {
       out.valueBuffer = out.value.toBuffer()
       delete out.value
@@ -27,16 +28,16 @@ var fromTransaction = (tx) => {
 }
 var fromHeader = (header) => ({
   numTransactions: header.numTransactions || 0,
-  header: Object.assign({}, header)
+  header: assign({}, header)
 })
 var toTransaction = (raw) => {
-  var tx = Object.assign(new Transaction(), raw)
+  var tx = assign(new Transaction(), raw)
   for (var output of tx.outs) {
     output.value = new BN(reverse(output.valueBuffer).toString('hex'), 'hex')
   }
   return tx
 }
-var toHeader = (header) => Object.assign(new Block(), header)
+var toHeader = (header) => assign(new Block(), header)
 
 var encodeTransforms = {
   'tx': fromTransaction,
@@ -76,7 +77,7 @@ var decodeTransforms = {
 function createTransformStream (transforms) {
   return through(function (message, enc, cb) {
     if (transforms[message.command]) {
-      message = Object.assign({}, message)
+      message = assign({}, message)
       message.payload = transforms[message.command](message.payload)
     }
     this.push(message)
