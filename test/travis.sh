@@ -16,6 +16,7 @@ echo npm version: `npm --version`
 npm install
 echo Install completed
 
+export DEBUG=bitcoin*,webcoin*,-bitcoin-net:messages*
 if [ $BROWSER ]; then
   npm run test-browser
 else
