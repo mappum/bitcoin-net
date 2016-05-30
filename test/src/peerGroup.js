@@ -182,3 +182,55 @@ test('close', (t) => {
     t.end()
   })
 })
+
+test('accept', (t) => {
+  t.test('simple accept', (t) => {
+    // TODO: create clients to test accepting
+    t.test('accept without opts', (t) => {
+      var pg = new PeerGroup(params.net)
+      pg.accept((err) => {
+        t.pass('callback called')
+        t.error(err, 'no error')
+        t.equal(pg.accepting, true, 'PeerGroup is accepting')
+        t.equal(pg.websocketPort, 8192, 'PeerGroup websocketPort is set')
+        pg.close(t.end.bind(t))
+      })
+    })
+    t.test('accept with port number', (t) => {
+      var pg = new PeerGroup(params.net)
+      pg.accept(8190, (err) => {
+        t.pass('callback called')
+        t.error(err, 'no error')
+        t.equal(pg.accepting, true, 'PeerGroup is accepting')
+        t.equal(pg.websocketPort, 8190, 'PeerGroup websocketPort is set')
+        pg.close(t.end.bind(t))
+      })
+    })
+    t.test('accept with ws opts object', (t) => {
+      var pg = new PeerGroup(params.net)
+      pg.accept({ port: 8191 }, (err) => {
+        t.pass('callback called')
+        t.error(err, 'no error')
+        t.equal(pg.accepting, true, 'PeerGroup is accepting')
+        t.equal(pg.websocketPort, 8191, 'PeerGroup websocketPort is set')
+        pg.close(t.end.bind(t))
+      })
+    })
+    t.test('unaccept', (t) => {
+      var pg = new PeerGroup(params.net)
+      pg.accept((err) => {
+        t.pass('callback called')
+        t.error(err, 'no error')
+        t.equal(pg.accepting, true, 'PeerGroup is accepting')
+        pg.unaccept((err) => {
+          t.pass('callback called')
+          t.error(err, 'no error')
+          t.equal(pg.accepting, false, 'PeerGroup is not accepting')
+          t.end()
+        })
+      })
+    })
+    t.end()
+  })
+  t.end()
+})
