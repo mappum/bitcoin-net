@@ -192,7 +192,9 @@ test('accept', (t) => {
         t.pass('callback called')
         t.error(err, 'no error')
         t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        t.equal(pg.websocketPort, 8192, 'PeerGroup websocketPort is set')
+        if (!process.browser) {
+          t.equal(pg.websocketPort, 8192, 'PeerGroup websocketPort is set')
+        }
         pg.close(t.end.bind(t))
       })
     })
@@ -202,7 +204,9 @@ test('accept', (t) => {
         t.pass('callback called')
         t.error(err, 'no error')
         t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        t.equal(pg.websocketPort, 8190, 'PeerGroup websocketPort is set')
+        if (!process.browser) {
+          t.equal(pg.websocketPort, 8190, 'PeerGroup websocketPort is set')
+        }
         pg.close(t.end.bind(t))
       })
     })
@@ -212,7 +216,9 @@ test('accept', (t) => {
         t.pass('callback called')
         t.error(err, 'no error')
         t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        t.equal(pg.websocketPort, 8191, 'PeerGroup websocketPort is set')
+        if (!process.browser) {
+          t.equal(pg.websocketPort, 8191, 'PeerGroup websocketPort is set')
+        }
         pg.close(t.end.bind(t))
       })
     })
