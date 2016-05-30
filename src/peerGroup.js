@@ -7,6 +7,7 @@ try { var net = require('net') } catch (err) {}
 var exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
+var parallel = require('run-parallel')
 var pumpify = require('pumpify').obj
 var assign = require('object-assign')
 var BlockStream = require('./blockStream.js')
@@ -14,7 +15,7 @@ var HeaderStream = require('./headerStream.js')
 var TransactionStream = require('./transactionStream.js')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
-if (!setImmediate) require('setimmediate')
+require('setimmediate')
 
 var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
@@ -249,6 +250,7 @@ class PeerGroup extends EventEmitter {
     clearInterval(this._txPoolInterval)
     this.unaccept((err) => {
       if (err) return cb(err)
+      if (this.peers.length === 0) return cb(null)
       var peers = this.peers.slice(0)
       for (var peer of peers) {
         peer.once('disconnect', () => {
@@ -261,24 +263,35 @@ class PeerGroup extends EventEmitter {
 
   // accept incoming connections through websocket and webrtc (if supported)
   accept (wsOpts, cb) {
-    if (typeof port === 'function') {
+    if (typeof wsOpts === 'function') {
       cb = wsOpts
       wsOpts = {}
-    } else if (typeof wsOpts === 'number') {
-      wsOpts = { port: wsOpts }
     }
-    if (!wsOpts.port) wsOpts.port = DEFAULT_PXP_PORT
-    this.websocketPort = wsOpts.port
     cb = cb || ((err) => { if (err) this._error(err) })
-    this._exchange.accept('websocket', wsOpts, (err) => {
-      if (err) return cb(err)
-      this._exchange.accept('webrtc', (err) => {
-        // ignore errors about not having a webrtc transport
-        if (err && err.message === 'Transport "webrtc" not found') err = null
-        if (err) return this.unaccept(() => cb(err))
-        this.accepting = true
-        cb(null)
-      })
+    parallel([
+      (cb) => this._acceptWebsocket(wsOpts, cb),
+      (cb) => this._acceptWebRTC(cb)
+    ], (err) => {
+      if (err) return this.unaccept(() => cb(err))
+      this.accepting = true
+      cb(null)
+    })
+  }
+
+  _acceptWebsocket (opts, cb) {
+    if (typeof opts === 'number') {
+      opts = { port: opts }
+    }
+    if (!opts.port) opts.port = DEFAULT_PXP_PORT
+    this.websocketPort = opts.port
+    this._exchange.accept('websocket', opts, cb)
+  }
+
+  _acceptWebRTC (cb) {
+    this._exchange.accept('webrtc', (err) => {
+      // ignore errors about not having a webrtc transport
+      if (err && err.message === 'Transport "webrtc" not found') err = null
+      cb(err)
     })
   }
 
@@ -288,6 +301,12 @@ class PeerGroup extends EventEmitter {
     this._exchange.unaccept('websocket', (err1) => {
       this._exchange.unaccept('webrtc', (err2) => {
         this.accepting = false
+        if (err1 && err1.message === 'Not accepting connections with "websocket" transport') {
+          err1 = null
+        }
+        if (err2 && err2.message === 'Not accepting connections with "webrtc" transport') {
+          err2 = null
+        }
         if (cb) return cb(err1 || err2)
         if (err1 || err2) return this._error(err1 || err2)
       })
