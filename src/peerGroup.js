@@ -279,6 +279,7 @@ class PeerGroup extends EventEmitter {
   }
 
   _acceptWebsocket (opts, cb) {
+    if (process.browser) return cb(null)
     if (typeof opts === 'number') {
       opts = { port: opts }
     }
