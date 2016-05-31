@@ -6,9 +6,8 @@ var Blockchain = require('blockchain-spv')
 var levelup = require('levelup')
 var memdown = require('memdown')
 var to = require('flush-write-stream').obj
+var { HeaderStream, BlockStream } = require('blockchain-download')
 var PeerGroup = require('../../lib/peerGroup.js')
-var HeaderStream = require('../../lib/headerStream.js')
-var BlockStream = require('../../lib/blockStream.js')
 
 var test = (name, opts, f) => {
   if (typeof opts === 'function') {

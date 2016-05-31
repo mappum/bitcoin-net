@@ -10,9 +10,11 @@ var once = require('once')
 var parallel = require('run-parallel')
 var pumpify = require('pumpify').obj
 var assign = require('object-assign')
-var BlockStream = require('./blockStream.js')
-var HeaderStream = require('./headerStream.js')
-var TransactionStream = require('./transactionStream.js')
+var {
+  BlockStream,
+  HeaderStream,
+  TransactionStream
+} = require('blockchain-download')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
 require('setimmediate')
