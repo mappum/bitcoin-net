@@ -42,11 +42,6 @@ class PeerGroup extends EventEmitter {
     this.closed = false
     this.accepting = false
 
-    // TODO: put array/map data structure in its own module
-    this._txPool = []
-    this._txPoolMap = {}
-    this._txPoolPrevLength = 0
-
     var wrtc = opts.wrtc || getBrowserRTC()
     var envSeeds = process.env.WEB_SEED
       ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
@@ -249,7 +244,6 @@ class PeerGroup extends EventEmitter {
 
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
-    clearInterval(this._txPoolInterval)
     this.unaccept((err) => {
       if (err) return cb(err)
       if (this.peers.length === 0) return cb(null)
@@ -320,10 +314,6 @@ class PeerGroup extends EventEmitter {
   addPeer (peer) {
     if (this.closed) throw new Error('Cannot add peers, PeerGroup is closed')
 
-    if (!this._txPoolInterval) {
-      this._txPoolInterval = setInterval(this._clearTxPool.bind(this), 20 * 1000)
-    }
-
     this.peers.push(peer)
     debug(`add peer: peers.length = ${this.peers.length}`)
 
@@ -337,14 +327,6 @@ class PeerGroup extends EventEmitter {
       this.emit(message.command, message.payload, peer)
     }
     peer.on('message', onMessage)
-
-    peer.on('tx', (tx) => {
-      var hash = tx.getHash().toString('base64')
-      if (!this._txPool[hash]) {
-        this._txPoolMap[hash] = tx
-        this._txPool.push(tx)
-      }
-    })
 
     peer.once('disconnect', (err) => {
       var index = this.peers.indexOf(peer)
@@ -411,14 +393,5 @@ class PeerGroup extends EventEmitter {
       cb(err, res, peer)
     })
     peer[method](...args)
-  }
-
-  _clearTxPool () {
-    var removed = this._txPool.slice(0, this._txPoolPrevLength)
-    this._txPool = this._txPool.slice(this._txPoolPrevLength)
-    for (var tx of removed) {
-      delete this._txPoolMap[tx.getHash().toString('base64')]
-    }
-    this._txPoolPrevLength = this._txPool.length
   }
 }
