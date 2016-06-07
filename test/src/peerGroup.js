@@ -150,16 +150,23 @@ test('peer methods', (t) => {
     var lastHeight = -1
     var lastHash = u.nullHash
     stream.on('data', (data) => {
+      if (lastHeight > 100) return
       t.equal(typeof data.height, 'number', 'data contains height')
       t.ok(data.header instanceof Block, 'data contains header (bitcoinjs Block)')
       t.equal(data.height, lastHeight + 1, 'blocks ordered by height')
       t.equal(data.header.prevHash.toString('hex'), lastHash.toString('hex'), 'block connects to previous hash')
       lastHeight++
       lastHash = data.header.getHash()
-      if (lastHeight >= 100) stream.end()
+      if (lastHeight === 100) {
+        readStream.once('finish', () => {
+          stream.end()
+        })
+        readStream.end()
+      }
     })
     stream.on('end', () => t.end())
-    chain.createReadStream().pipe(stream)
+    var readStream = chain.createReadStream()
+    readStream.pipe(stream)
   })
 
   t.end()
