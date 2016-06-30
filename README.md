@@ -15,15 +15,18 @@
 var params = require('webcoin-bitcoin').net
 
 // create peer group
-var PeerGroup = require('bitcoin-net')
+var PeerGroup = require('./').PeerGroup
 var peers = new PeerGroup(params)
 
 peers.on('peer', (peer) => {
-  console.log('connected to peer', peer.remoteAddress)
+  console.log('connected to peer', peer.socket.remoteAddress)
 
   // send/receive messages
   peer.once('pong', () => console.log('received ping response'))
-  peer.send('ping')
+  peer.send('ping', {
+    nonce: require('crypto').pseudoRandomBytes(8)
+  })
+  console.log('sent ping')
 })
 
 // create connections to peers
