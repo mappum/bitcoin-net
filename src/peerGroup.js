@@ -1,7 +1,7 @@
 'use strict'
 
 var debug = require('debug')('bitcoin-net:peergroup')
-var dns = require('dns')
+try { var dns = require('dns') } catch (err) {}
 var EventEmitter = require('events')
 try { var net = require('net') } catch (err) {}
 var exchange = require('peer-exchange')
