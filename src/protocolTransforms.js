@@ -5,6 +5,7 @@ var assign = require('object-assign')
 var bitcoinjs = require('bitcoinjs-lib')
 var Block = bitcoinjs.Block
 var Transaction = bitcoinjs.Transaction
+var int53 = require('int53')
 
 var fromTransaction = (tx) => {
   var output = assign({}, tx)
@@ -13,13 +14,17 @@ var fromTransaction = (tx) => {
       throw new Error('Transaction output has both "value" and "valueBuffer"')
     }
     var value = out.value || out.valueBuffer
-    if (!value || !(BN.isBN(value) || Buffer.isBuffer(value))) {
-      throw new Error('Transaction output values must be a BN.js number or ' +
-        'a Buffer')
+    if (typeof value !== 'number' && !BN.isBN(value) && !Buffer.isBuffer(value)) {
+      throw new Error('Transaction output values must be a number, BN.js ' +
+        'instance, or a Buffer')
     }
     out = assign({}, out)
-    if (out.value) {
+    if (BN.isBn(value)) {
       out.valueBuffer = out.value.toBuffer()
+      delete out.value
+    } else if (typeof value === 'number') {
+      out.valueBuffer = Buffer(8)
+      int53.writeUInt53LE(value, out.valueBuffer)
       delete out.value
     }
     return out
