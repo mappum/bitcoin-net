@@ -45,7 +45,7 @@ var debugStream = (f) => through((message, enc, cb) => {
 
 module.exports =
 class Peer extends EventEmitter {
-  constructor (params, opts) {
+  constructor (params, opts = {}) {
     utils.assertParams(params)
 
     super()

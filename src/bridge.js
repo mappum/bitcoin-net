@@ -3,6 +3,9 @@
 var debug = require('debug')('bitcoin-net:bridge')
 var PeerGroup = require('./peerGroup.js')
 var assign = require('object-assign')
+var proto = require('bitcoin-protocol')
+var through = require('through2').obj
+var pkg = require('../package.json')
 
 module.exports =
 class Bridge extends PeerGroup {
@@ -35,7 +38,26 @@ class Bridge extends PeerGroup {
       client.once('close', () => bridgePeer.destroy())
       bridgePeer.once('close', () => client.destroy())
 
-      client.pipe(bridgePeer).pipe(client)
+      client.pipe(bridgePeer)
+      var transform = through((message, enc, cb) => {
+        if (message.command !== 'version') return cb(null, message)
+        var version = message.payload
+        if (!version.userAgent.endsWith('/')) version.userAgent += '/'
+        version.userAgent += `webcoin-bridge:${pkg.version}`
+        version.userAgent += `(proxy; host='${bridgePeer.remoteAddress}')/`
+        cb(null, message)
+        bridgePeer.unpipe()
+        bridgePeer.pipe(client)
+      })
+      var protocolOpts = {
+        magic: this._params.magic,
+        messages: this._params.messages
+      }
+      bridgePeer
+        .pipe(proto.createDecodeStream(protocolOpts))
+        .pipe(transform)
+        .pipe(proto.createEncodeStream(protocolOpts))
+        .pipe(client)
       this.emit('bridge', client, bridgePeer)
     })
   }
