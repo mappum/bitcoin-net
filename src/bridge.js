@@ -5,6 +5,7 @@ var PeerGroup = require('./peerGroup.js')
 var assign = require('object-assign')
 var proto = require('bitcoin-protocol')
 var through = require('through2').obj
+var pump = require('pump')
 var pkg = require('../package.json')
 
 module.exports =
@@ -53,11 +54,14 @@ class Bridge extends PeerGroup {
         magic: this._params.magic,
         messages: this._params.messages
       }
-      bridgePeer
-        .pipe(proto.createDecodeStream(protocolOpts))
-        .pipe(transform)
-        .pipe(proto.createEncodeStream(protocolOpts))
-        .pipe(client)
+      pump(
+        bridgePeer,
+        proto.createDecodeStream(protocolOpts),
+        transform,
+        proto.createEncodeStream(protocolOpts),
+        client,
+        onError
+      )
       this.emit('bridge', client, bridgePeer)
     })
   }
