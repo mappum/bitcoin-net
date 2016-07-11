@@ -29,6 +29,7 @@ class Bridge extends PeerGroup {
       }
       debug(`connected to TCP peer for bridging: ${bridgePeer.remoteAddress}`)
       var onError = (err) => {
+        if (!err) return
         client.destroy()
         bridgePeer.destroy()
         debug('error', err.message)
