@@ -44,8 +44,8 @@ class Bridge extends PeerGroup {
         if (message.command !== 'version') return cb(null, message)
         var version = message.payload
         if (!version.userAgent.endsWith('/')) version.userAgent += '/'
-        version.userAgent += `webcoin-bridge:${pkg.version}`
-        version.userAgent += `(proxy; host='${bridgePeer.remoteAddress}')/`
+        version.userAgent += `webcoin-bridge:${pkg.version} (proxy; ` +
+          `${bridgePeer.remoteAddress}:${bridgePeer.remotePort})/`
         cb(null, message)
         bridgePeer.unpipe()
         bridgePeer.pipe(client)
