@@ -60,12 +60,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mappum/bitcoin-net.git"
+    "url": "git+https://github.com/Head/bitcoin-net.git"
   },
   "bugs": {
-    "url": "https://github.com/mappum/bitcoin-net/issues"
+    "url": "https://github.com/Head/bitcoin-net/issues"
   },
-  "homepage": "https://github.com/mappum/bitcoin-net#readme",
+  "homepage": "https://github.com/Head/bitcoin-net#readme",
   "browserify": {
     "transform": [
       "envify"

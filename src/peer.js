@@ -147,7 +147,7 @@ class Peer extends EventEmitter {
 
   ping (cb) {
     var start = Date.now()
-    var nonce = crypto.pseudoRandomBytes(8)
+    var nonce = crypto.randomBytes(8)
     var onPong = (pong) => {
       if (pong.nonce.compare(nonce) !== 0) return
       this.removeListener('pong', onPong)
@@ -238,7 +238,7 @@ class Peer extends EventEmitter {
         address: '0.0.0.0',
         port: this.socket.localPort || 0
       },
-      nonce: crypto.pseudoRandomBytes(8),
+      nonce: crypto.randomBytes(8),
       userAgent: this.userAgent,
       startHeight: this.getTip ? this.getTip().height : 0,
       relay: this.relay
