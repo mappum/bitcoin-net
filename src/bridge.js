@@ -5,42 +5,26 @@ var PeerGroup = require('./peerGroup.js')
 var assign = require('object-assign')
 var proto = require('bitcoin-protocol')
 var through = require('through2').obj
-var pump = require('pump')
+var pumpify = require('pumpify')
 var pkg = require('../package.json')
 
 module.exports =
 class Bridge extends PeerGroup {
   constructor (params, opts) {
-    opts = assign({ connectWeb: false }, opts)
+    var selectPeer = (...args) => this._selectPeer(...args)
+    opts = assign({
+      connectWeb: false,
+      exchangeOpts: { selectPeer }
+    }, opts)
     super(params, opts)
   }
 
-  _onConnection (err, client) {
-    if (err) {
-      this.emit('connectError', err, null)
-      return
-    }
-    if (!client.incoming) return
-    this.emit('connection', client)
+  _selectPeer (cb) {
+    console.log('selectPeer')
     this._connectPeer((err, bridgePeer) => {
-      if (err) {
-        this.emit('connectError', err)
-        return setImmediate(() => this._onConnection(null, client))
-      }
+      if (err) return cb(err)
       debug(`connected to TCP peer for bridging: ${bridgePeer.remoteAddress}`)
-      var onError = (err) => {
-        if (!err) return
-        client.destroy()
-        bridgePeer.destroy()
-        debug('error', err.message)
-        this.emit('peerError', err, client, bridgePeer)
-      }
-      client.once('error', onError)
-      bridgePeer.once('error', onError)
-      client.once('close', () => bridgePeer.destroy())
-      bridgePeer.once('close', () => client.destroy())
 
-      client.pipe(bridgePeer)
       var transform = through((message, enc, cb) => {
         if (message.command !== 'version') return cb(null, message)
         var version = message.payload
@@ -48,23 +32,25 @@ class Bridge extends PeerGroup {
         version.userAgent += `webcoin-bridge:${pkg.version} (proxy; ` +
           `${bridgePeer.remoteAddress}:${bridgePeer.remotePort})/`
         cb(null, message)
-        bridgePeer.unpipe()
-        bridgePeer.pipe(client)
       })
+
       var protocolOpts = {
         magic: this._params.magic,
         messages: this._params.messages
       }
-      pump(
+      var stream = pumpify(
         bridgePeer,
         proto.createDecodeStream(protocolOpts),
         transform,
-        proto.createEncodeStream(protocolOpts),
-        client,
-        onError
+        proto.createEncodeStream(protocolOpts)
       )
-      this.emit('bridge', client, bridgePeer)
+      cb(null, stream)
     })
+  }
+
+  _onConnection (err, socket) {
+    if (err) return this.emit('error', err)
+    this.emit('connection', socket)
   }
 
   connect () {

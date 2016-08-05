@@ -46,7 +46,8 @@ class PeerGroup extends EventEmitter {
     var envSeeds = process.env.WEB_SEED
       ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
     this._webSeeds = this._params.webSeeds.concat(envSeeds)
-    this._exchange = exchange(params.magic.toString(16), { wrtc })
+    this._exchange = exchange(params.magic.toString(16),
+      assign({ wrtc }, opts.exchangeOpts))
     this._exchange.on('error', this._error.bind(this))
     this._exchange.on('peer', (peer) => {
       if (!peer.incoming) return
@@ -181,7 +182,7 @@ class PeerGroup extends EventEmitter {
       this._exchange.connect(seed.transport, seed.address, seed.opts, (err, socket) => {
         debug(err ? `error connecting to web seed: ${JSON.stringify(seed, null, '  ')} ${err.stack}`
           : `connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
-        this._onConnection(err, socket)
+        this.emit('webSeed', socket)
       })
     })
   }
@@ -223,13 +224,13 @@ class PeerGroup extends EventEmitter {
       var nSeeds = Math.max(1,
         Math.min(this._webSeeds.length, Math.floor(this._numPeers / 2)))
       var i = 0
-      var onPeer = () => {
+      var onWebSeed = () => {
         i++
         if (i < nSeeds) return
-        this.removeListener('peer', onPeer)
+        this.removeListener('webSeed', onWebSeed)
         this._fillPeers()
       }
-      this.on('peer', onPeer)
+      this.on('webSeed', onWebSeed)
       return this._connectWebSeeds()
     }
 
