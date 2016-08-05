@@ -20,7 +20,6 @@ class Bridge extends PeerGroup {
   }
 
   _selectPeer (cb) {
-    console.log('selectPeer')
     this._connectPeer((err, bridgePeer) => {
       if (err) return cb(err)
       debug(`connected to TCP peer for bridging: ${bridgePeer.remoteAddress}`)
