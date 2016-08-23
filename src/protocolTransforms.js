@@ -19,12 +19,12 @@ var fromTransaction = (tx) => {
         'instance, or a Buffer')
     }
     out = assign({}, out)
-    if (BN.isBn(value)) {
+    if (BN.isBN(value)) {
       out.valueBuffer = out.value.toBuffer()
       delete out.value
     } else if (typeof value === 'number') {
       out.valueBuffer = Buffer(8)
-      int53.writeUInt53LE(value, out.valueBuffer)
+      int53.writeUInt64LE(value, out.valueBuffer)
       delete out.value
     }
     return out
