@@ -120,6 +120,13 @@ class PeerGroup extends EventEmitter {
       getPeerArray.push(this._params.getNewPeer.bind(this._params))
     }
     if (getPeerArray.length === 0) {
+      this.connecting = false;
+      if (this.connectTimeout) {
+        var timeout = setTimeout(() => {
+          this.connecting = true;
+          setImmediate(this.connect())
+        }, this.connectTimeout)
+      }
       return this._onConnection(
         new Error('No methods available to get new peers'))
     }
