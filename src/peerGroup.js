@@ -106,6 +106,7 @@ class PeerGroup extends EventEmitter {
     if (this.closed) return
     var getPeerArray = []
     if (!process.browser) {
+      getPeerArray.push(this._connectLocalhost.bind(this))
       if (this._params.dnsSeeds && this._params.dnsSeeds.length > 0) {
         getPeerArray.push(this._connectDNSPeer.bind(this))
       }
@@ -120,6 +121,13 @@ class PeerGroup extends EventEmitter {
       getPeerArray.push(this._params.getNewPeer.bind(this._params))
     }
     if (getPeerArray.length === 0) {
+      this.connecting = false;
+      if (this.connectTimeout) {
+        var timeout = setTimeout(() => {
+          this.connecting = true;
+          setImmediate(this.connect())
+        }, this.connectTimeout)
+      }
       return this._onConnection(
         new Error('No methods available to get new peers'))
     }
@@ -146,6 +154,11 @@ class PeerGroup extends EventEmitter {
     var address = utils.getRandom(peers)
     var peer = utils.parseAddress(address)
     this._connectTCP(peer.hostname, peer.port || this._params.defaultPort, cb)
+  }
+
+  // connects to localhost
+  _connectLocalhost (cb) {
+    this._connectTCP('localhost', this._params.defaultPort, cb)
   }
 
   // connects to a standard protocol TCP peer
