@@ -15,6 +15,7 @@ var {
   HeaderStream,
   TransactionStream
 } = require('blockchain-download')
+var old = require('old')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
 require('setimmediate')
@@ -22,7 +23,7 @@ require('setimmediate')
 var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
 module.exports =
-class PeerGroup extends EventEmitter {
+old(class PeerGroup extends EventEmitter {
   constructor (params, opts) {
     utils.assertParams(params)
     super()
@@ -402,4 +403,4 @@ class PeerGroup extends EventEmitter {
     })
     peer[method](...args)
   }
-}
+})
