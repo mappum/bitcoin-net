@@ -22,8 +22,7 @@ require('setimmediate')
 
 var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
-module.exports =
-old(class PeerGroup extends EventEmitter {
+class PeerGroup extends EventEmitter {
   constructor (params, opts) {
     utils.assertParams(params)
     super()
@@ -64,6 +63,7 @@ old(class PeerGroup extends EventEmitter {
     this.on('tx', (tx) => {
       this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
     })
+    this.once('peer', () => this.emit('connect'))
   }
 
   _error (err) {
@@ -221,9 +221,10 @@ old(class PeerGroup extends EventEmitter {
   }
 
   // initializes the PeerGroup by creating peer connections
-  connect () {
+  connect (onConnect) {
     debug('connect called')
     this.connecting = true
+    if (onConnect) this.once('connect', onConnect)
 
     // first, try to connect to web seeds so we can get web peers
     // once we have a few, start filling peers via any random
@@ -403,4 +404,6 @@ old(class PeerGroup extends EventEmitter {
     })
     peer[method](...args)
   }
-})
+}
+
+module.exports = old(PeerGroup)
