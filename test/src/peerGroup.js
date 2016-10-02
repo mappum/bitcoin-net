@@ -8,6 +8,7 @@ var memdown = require('memdown')
 var to = require('flush-write-stream').obj
 var { HeaderStream, BlockStream } = require('blockchain-download')
 var PeerGroup = require('../../').PeerGroup
+var wrtc = require('wrtc')
 
 var test = (name, opts, f) => {
   if (typeof opts === 'function') {
@@ -22,7 +23,7 @@ var test = (name, opts, f) => {
 test('PeerGroup constructor', (t) => {
   t.test('invalid params', (t) => {
     try {
-      var peers = new PeerGroup({})
+      var peers = new PeerGroup({}, { wrtc })
       t.fail('should have thrown')
       t.notOk(peers)
     } catch (err) {
@@ -33,13 +34,19 @@ test('PeerGroup constructor', (t) => {
   })
 
   t.test('valid params, no options', (t) => {
-    var peers = new PeerGroup(params.net)
-    t.ok(peers, 'created PeerGroup')
-    t.end()
+    try {
+      var peers = new PeerGroup(params.net)
+      t.fail('should have thrown')
+      t.notOk(peers)
+    } catch (err) {
+      t.ok(err, 'error thrown')
+      t.equal(err.message, 'No WebRTC implementation found, please pass one in  as the "wrtc" option (for example, the "wrtc" or "electron-webrtc" packages).', 'correct error message')
+      t.end()
+    }
   })
 
   t.test('valid params, with options', (t) => {
-    var peers = new PeerGroup(params.net, { numPeers: 4 })
+    var peers = new PeerGroup(params.net, { numPeers: 4, wrtc })
     t.ok(peers, 'created PeerGroup')
     t.end()
   })
@@ -51,7 +58,7 @@ var numPeers = 2
 var pg
 test('connect', (t) => {
   // NOTE: these tests connects to real nodes
-  pg = new PeerGroup(params.net, { numPeers })
+  pg = new PeerGroup(params.net, { numPeers, wrtc })
 
   var onPeer = (peer) => {
     t.ok(peer, 'got peer')
@@ -187,62 +194,4 @@ test('close', (t) => {
     t.equal(pg.peers.length, 0, 'disconnected from all peers')
     t.end()
   })
-})
-
-test('accept', (t) => {
-  t.test('simple accept', (t) => {
-    // TODO: create clients to test accepting
-    t.test('accept without opts', (t) => {
-      var pg = new PeerGroup(params.net)
-      pg.accept((err) => {
-        t.pass('callback called')
-        t.error(err, 'no error')
-        t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        if (!process.browser) {
-          t.equal(pg.websocketPort, 8192, 'PeerGroup websocketPort is set')
-        }
-        pg.close(t.end.bind(t))
-      })
-    })
-    t.test('accept with port number', (t) => {
-      var pg = new PeerGroup(params.net)
-      pg.accept(8190, (err) => {
-        t.pass('callback called')
-        t.error(err, 'no error')
-        t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        if (!process.browser) {
-          t.equal(pg.websocketPort, 8190, 'PeerGroup websocketPort is set')
-        }
-        pg.close(t.end.bind(t))
-      })
-    })
-    t.test('accept with ws opts object', (t) => {
-      var pg = new PeerGroup(params.net)
-      pg.accept({ port: 8191 }, (err) => {
-        t.pass('callback called')
-        t.error(err, 'no error')
-        t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        if (!process.browser) {
-          t.equal(pg.websocketPort, 8191, 'PeerGroup websocketPort is set')
-        }
-        pg.close(t.end.bind(t))
-      })
-    })
-    t.test('unaccept', (t) => {
-      var pg = new PeerGroup(params.net)
-      pg.accept((err) => {
-        t.pass('callback called')
-        t.error(err, 'no error')
-        t.equal(pg.accepting, true, 'PeerGroup is accepting')
-        pg.unaccept((err) => {
-          t.pass('callback called')
-          t.error(err, 'no error')
-          t.equal(pg.accepting, false, 'PeerGroup is not accepting')
-          t.end()
-        })
-      })
-    })
-    t.end()
-  })
-  t.end()
 })
