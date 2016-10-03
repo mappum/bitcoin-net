@@ -92,7 +92,9 @@ class Peer extends EventEmitter {
       throw new Error('Must specify socket duplex stream')
     }
     this.socket = socket
-    socket.once('close', () => this.disconnect(new Error('Socket closed')))
+    socket.once('close', () => {
+      this.disconnect(new Error('Socket closed'))
+    })
     socket.on('error', this._error.bind(this))
 
     var protocolOpts = {
@@ -141,7 +143,7 @@ class Peer extends EventEmitter {
     this.disconnected = true
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout)
     clearInterval(this._pingInterval)
-    this.socket.destroy()
+    this.socket.end()
     this.emit('disconnect', err)
   }
 
