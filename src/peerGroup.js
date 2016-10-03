@@ -134,7 +134,7 @@ class PeerGroup extends EventEmitter {
       if (this.connectTimeout) {
         setTimeout(() => {
           this.connecting = true
-          setImmediate(this.connect())
+          setImmediate(this.connect.bind(this))
         }, this.connectTimeout)
       }
       return this._onConnection(
@@ -189,19 +189,15 @@ class PeerGroup extends EventEmitter {
   _connectWebSeeds () {
     this._webSeeds.forEach((seed) => {
       debug(`connecting to web seed: ${JSON.stringify(seed, null, '  ')}`)
-      ws(seed, (err, socket) => {
+      var socket = ws(seed)
+      socket.on('error', (err) => this._error(err))
+      this._exchange.connect(socket, (err, peer) => {
         if (err) {
-          debug(`error connecting to web seed (websocket): ${JSON.stringify(seed, null, '  ')} ${err.stack}`)
+          debug(`error connecting to web seed (pxp): ${JSON.stringify(seed, null, '  ')} ${err.stack}`)
           return
         }
-        this._exchange.connect(socket, (err, peer) => {
-          if (err) {
-            debug(`error connecting to web seed (pxp): ${JSON.stringify(seed, null, '  ')} ${err.stack}`)
-            return
-          }
-          debug(`connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
-          this.emit('webSeed', peer)
-        })
+        debug(`connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
+        this.emit('webSeed', peer)
       })
     })
   }
