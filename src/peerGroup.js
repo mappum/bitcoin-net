@@ -4,10 +4,11 @@ var debug = require('debug')('bitcoin-net:peergroup')
 var dns = require('dns')
 var EventEmitter = require('events')
 try { var net = require('net') } catch (err) {}
-var exchange = require('peer-exchange')
+var ws = require('websocket-stream')
+var http = require('http')
+var Exchange = require('peer-exchange')
 var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
-var parallel = require('run-parallel')
 var pumpify = require('pumpify').obj
 var assign = require('object-assign')
 var {
@@ -38,21 +39,31 @@ class PeerGroup extends EventEmitter {
       ? opts.connectTimeout : 8 * 1000
     this.peerOpts = opts.peerOpts != null
       ? opts.peerOpts : {}
+    this.acceptIncoming = opts.acceptIncoming
+    var acceptIncoming = this.acceptIncoming
     this.connecting = false
     this.closed = false
     this.accepting = false
 
-    var wrtc = opts.wrtc || getBrowserRTC()
-    var envSeeds = process.env.WEB_SEED
-      ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
-    this._webSeeds = this._params.webSeeds.concat(envSeeds)
-    this._exchange = exchange(params.magic.toString(16),
-      assign({ wrtc }, opts.exchangeOpts))
-    this._exchange.on('error', this._error.bind(this))
-    this._exchange.on('peer', (peer) => {
-      if (!peer.incoming) return
-      this._onConnection(null, peer)
-    })
+    if (this._connectWeb) {
+      var wrtc = opts.wrtc || getBrowserRTC()
+      var envSeeds = process.env.WEB_SEED
+        ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
+      this._webSeeds = this._params.webSeeds.concat(envSeeds)
+      try {
+        this._exchange = Exchange(params.magic.toString(16),
+          assign({ wrtc, acceptIncoming }, opts.exchangeOpts))
+      } catch (err) {
+        return this._error(err)
+      }
+      this._exchange.on('error', this._error.bind(this))
+      this._exchange.on('connect', (stream) => {
+        this._onConnection(null, stream)
+      })
+      if (!process.browser && acceptIncoming) {
+        this._acceptWebsocket()
+      }
+    }
 
     this.on('block', (block) => {
       this.emit(`block:${block.header.getHash().toString('base64')}`, block)
@@ -125,7 +136,7 @@ class PeerGroup extends EventEmitter {
       if (this.connectTimeout) {
         setTimeout(() => {
           this.connecting = true
-          setImmediate(this.connect())
+          setImmediate(this.connect.bind(this))
         }, this.connectTimeout)
       }
       return this._onConnection(
@@ -179,18 +190,16 @@ class PeerGroup extends EventEmitter {
   // connects to the peer-exchange peers provided by the params
   _connectWebSeeds () {
     this._webSeeds.forEach((seed) => {
-      if (typeof seed === 'string') {
-        var url = utils.parseAddress(seed)
-        var port = url.port || this._params.defaultWebPort || DEFAULT_PXP_PORT
-        var secure = url.protocol && url.protocol === 'wss:'
-        var opts = { port, secure }
-        seed = { transport: 'websocket', address: url.hostname, opts }
-      }
       debug(`connecting to web seed: ${JSON.stringify(seed, null, '  ')}`)
-      this._exchange.connect(seed.transport, seed.address, seed.opts, (err, socket) => {
-        debug(err ? `error connecting to web seed: ${JSON.stringify(seed, null, '  ')} ${err.stack}`
-          : `connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
-        this.emit('webSeed', socket)
+      var socket = ws(seed)
+      socket.on('error', (err) => this._error(err))
+      this._exchange.connect(socket, (err, peer) => {
+        if (err) {
+          debug(`error connecting to web seed (pxp): ${JSON.stringify(seed, null, '  ')} ${err.stack}`)
+          return
+        }
+        debug(`connected to web seed: ${JSON.stringify(seed, null, '  ')}`)
+        this.emit('webSeed', peer)
       })
     })
   }
@@ -230,16 +239,7 @@ class PeerGroup extends EventEmitter {
     // once we have a few, start filling peers via any random
     // peer discovery method
     if (this._connectWeb && this._params.webSeeds && this._webSeeds.length) {
-      var nSeeds = Math.max(1,
-        Math.min(this._webSeeds.length, Math.floor(this._numPeers / 2)))
-      var i = 0
-      var onWebSeed = () => {
-        i++
-        if (i < nSeeds) return
-        this.removeListener('webSeed', onWebSeed)
-        this._fillPeers()
-      }
-      this.on('webSeed', onWebSeed)
+      this.once('webSeed', () => this._fillPeers())
       return this._connectWebSeeds()
     }
 
@@ -254,70 +254,26 @@ class PeerGroup extends EventEmitter {
 
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
-    this.unaccept((err) => {
-      if (err) return cb(err)
-      if (this.peers.length === 0) return cb(null)
-      var peers = this.peers.slice(0)
-      for (var peer of peers) {
-        peer.once('disconnect', () => {
-          if (this.peers.length === 0) cb(null)
-        })
-        peer.disconnect(new Error('PeerGroup closing'))
-      }
-    })
-  }
-
-  // accept incoming connections through websocket and webrtc (if supported)
-  accept (wsOpts, cb) {
-    if (typeof wsOpts === 'function') {
-      cb = wsOpts
-      wsOpts = {}
-    }
-    cb = cb || ((err) => { if (err) this._error(err) })
-    parallel([
-      (cb) => this._acceptWebsocket(wsOpts, cb),
-      (cb) => this._acceptWebRTC(cb)
-    ], (err) => {
-      if (err) return this.unaccept(() => cb(err))
-      this.accepting = true
-      cb(null)
-    })
-  }
-
-  _acceptWebsocket (opts, cb) {
-    if (process.browser) return cb(null)
-    if (typeof opts === 'number') {
-      opts = { port: opts }
-    }
-    if (!opts.port) opts.port = DEFAULT_PXP_PORT
-    this.websocketPort = opts.port
-    this._exchange.accept('websocket', opts, cb)
-  }
-
-  _acceptWebRTC (cb) {
-    this._exchange.accept('webrtc', (err) => {
-      // ignore errors about not having a webrtc transport
-      if (err && err.message === 'Transport "webrtc" not found') err = null
-      cb(err)
-    })
-  }
-
-  // stop accepting incoming connections
-  unaccept (cb) {
-    if (!this.accepting) return cb(null)
-    this._exchange.unaccept('websocket', (err1) => {
-      this._exchange.unaccept('webrtc', (err2) => {
-        this.accepting = false
-        if (err1 && err1.message === 'Not accepting connections with "websocket" transport') {
-          err1 = null
-        }
-        if (err2 && err2.message === 'Not accepting connections with "webrtc" transport') {
-          err2 = null
-        }
-        if (cb) return cb(err1 || err2)
-        if (err1 || err2) return this._error(err1 || err2)
+    if (this.peers.length === 0) return cb(null)
+    var peers = this.peers.slice(0)
+    for (var peer of peers) {
+      peer.once('disconnect', () => {
+        if (this.peers.length === 0) cb(null)
       })
+      peer.disconnect(new Error('PeerGroup closing'))
+    }
+  }
+
+  _acceptWebsocket (port, cb) {
+    if (process.browser) return cb(null)
+    if (!port) port = DEFAULT_PXP_PORT
+    this.websocketPort = port
+    var server = http.createServer()
+    ws.createServer({ server }, (stream) => {
+      this._exchange.accept(stream)
     })
+    http.listen(port)
+    cb(null)
   }
 
   // manually adds a Peer
