@@ -45,22 +45,24 @@ class PeerGroup extends EventEmitter {
     this.closed = false
     this.accepting = false
 
-    var wrtc = opts.wrtc || getBrowserRTC()
-    var envSeeds = process.env.WEB_SEED
-      ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
-    this._webSeeds = this._params.webSeeds.concat(envSeeds)
-    try {
-      this._exchange = Exchange(params.magic.toString(16),
-        assign({ wrtc, acceptIncoming }, opts.exchangeOpts))
-    } catch (err) {
-      return this._error(err)
-    }
-    this._exchange.on('error', this._error.bind(this))
-    this._exchange.on('connect', (stream) => {
-      this._onConnection(null, stream)
-    })
-    if (!process.browser && acceptIncoming) {
-      this._acceptWebsocket()
+    if (this._connectWeb) {
+      var wrtc = opts.wrtc || getBrowserRTC()
+      var envSeeds = process.env.WEB_SEED
+        ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
+      this._webSeeds = this._params.webSeeds.concat(envSeeds)
+      try {
+        this._exchange = Exchange(params.magic.toString(16),
+          assign({ wrtc, acceptIncoming }, opts.exchangeOpts))
+      } catch (err) {
+        return this._error(err)
+      }
+      this._exchange.on('error', this._error.bind(this))
+      this._exchange.on('connect', (stream) => {
+        this._onConnection(null, stream)
+      })
+      if (!process.browser && acceptIncoming) {
+        this._acceptWebsocket()
+      }
     }
 
     this.on('block', (block) => {
