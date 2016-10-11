@@ -34,14 +34,21 @@ test('PeerGroup constructor', (t) => {
   })
 
   t.test('valid params, connectWeb opt but no wrtc', (t) => {
-    try {
-      var peers = new PeerGroup(params.net, { connectWeb: true })
-      t.fail('should have thrown')
-      t.notOk(peers)
-    } catch (err) {
-      t.ok(err, 'error thrown')
-      t.equal(err.message, 'No WebRTC implementation found, please pass one in  as the "wrtc" option (for example, the "wrtc" or "electron-webrtc" packages).', 'correct error message')
+    var peers
+    if (process.browser) {
+      peers = new PeerGroup(params.net, { connectWeb: true })
+      t.ok(peers, 'no error thrown')
       t.end()
+    } else {
+      try {
+        peers = new PeerGroup(params.net, { connectWeb: true })
+        t.fail('should have thrown')
+        t.notOk(peers)
+      } catch (err) {
+        t.ok(err, 'error thrown')
+        t.equal(err.message, 'No WebRTC implementation found, please pass one in  as the "wrtc" option (for example, the "wrtc" or "electron-webrtc" packages).', 'correct error message')
+        t.end()
+      }
     }
   })
 
