@@ -26,7 +26,7 @@
     "blockchain-download": "^1.0.0",
     "bn.js": "^4.11.1",
     "buffer-reverse": "^1.0.1",
-    "debug": "^2.2.0",
+    "debug": "^2.4.5",
     "envify": "^3.4.0",
     "event-cleanup": "^1.0.3",
     "get-browser-rtc": "^1.0.2",
