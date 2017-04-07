@@ -40,7 +40,7 @@
     "run-parallel": "^1.1.6",
     "setimmediate": "^1.0.4",
     "through2": "^2.0.1",
-    "websocket-stream": "^3.3.0"
+    "websocket-stream": "^4.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.5.1",
