@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "babel-cli": "^6.5.1",
-    "babel-preset-es2015": "^6.5.0",
+    "babel-preset-es2015": "^6.13.1",
     "blockchain-spv": "^2.0.0",
     "faucet": "0.0.1",
     "flush-write-stream": "^1.0.0",
