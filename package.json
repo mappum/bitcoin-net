@@ -54,7 +54,7 @@
     "standard": "^7.0.1",
     "tape": "^4.5.1",
     "webcoin-bitcoin": "^3.0.0",
-    "wrtc": "0.0.61",
+    "wrtc": "0.0.62",
     "zuul": "^3.10.1",
     "zuul-ngrok": "^4.0.0"
   },
