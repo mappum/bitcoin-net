@@ -42,7 +42,7 @@ var toTransaction = (raw) => {
   }
   return tx
 }
-var toHeader = (header) => assign(new Block(), header)
+var toHeader = (header) => header.getHash ? header : assign(new Block(), header)
 
 var encodeTransforms = {
   'tx': fromTransaction,
