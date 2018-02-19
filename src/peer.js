@@ -12,7 +12,6 @@ var wrapEvents = require('event-cleanup')
 var through = require('through2').obj
 var EventEmitter = require('events')
 var pkg = require('../package.json')
-var transforms = require('./protocolTransforms.js')
 var utils = require('./utils.js')
 
 var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
@@ -102,17 +101,13 @@ class Peer extends EventEmitter {
       messages: this.params.messages
     }
 
-    var decoder = transforms.decode()
-    var protoDecoder = proto.createDecodeStream(protocolOpts)
-    protoDecoder.on('error', this._error.bind(this))
+    var decoder = proto.createDecodeStream(protocolOpts)
     this._decoder = debugStream(debug.rx)
-    socket.pipe(protoDecoder).pipe(decoder).pipe(this._decoder)
+    socket.pipe(decoder).pipe(this._decoder)
 
-    this._encoder = transforms.encode()
-    var protoEncoder = proto.createEncodeStream(protocolOpts)
-    protoEncoder.on('error', this._error.bind(this))
+    this._encoder = proto.createEncodeStream(protocolOpts)
     var encodeDebug = debugStream(debug.tx)
-    this._encoder.pipe(encodeDebug).pipe(protoEncoder).pipe(socket)
+    this._encoder.pipe(encodeDebug).pipe(socket)
 
     // timeout if handshake doesn't finish fast enough
     if (this.handshakeTimeout) {
