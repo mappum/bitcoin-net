@@ -111,9 +111,9 @@ class Peer extends EventEmitter {
     this._decoder = debugStream(debug.rx)
     socket.pipe(decoder).pipe(this._decoder)
 
-    this._encoder = proto.createEncodeStream(protocolOpts)
-    var encodeDebug = debugStream(debug.tx)
-    this._encoder.pipe(encodeDebug).pipe(socket)
+    this._encoder = debugStream(debug.tx)
+    let encoder = proto.createEncodeStream(protocolOpts)
+    this._encoder.pipe(encoder).pipe(socket)
 
     // timeout if handshake doesn't finish fast enough
     if (this.handshakeTimeout) {
