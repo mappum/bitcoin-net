@@ -11,11 +11,6 @@ var getBrowserRTC = require('get-browser-rtc')
 var once = require('once')
 var pumpify = require('pumpify').obj
 var assign = require('object-assign')
-var {
-  BlockStream,
-  HeaderStream,
-  TransactionStream
-} = require('blockchain-download')
 var old = require('old')
 var Peer = require('./peer.js')
 var utils = require('./utils.js')
@@ -313,21 +308,6 @@ class PeerGroup extends EventEmitter {
   randomPeer () {
     this._assertPeers()
     return utils.getRandom(this.peers)
-  }
-
-  createHeaderStream (opts) {
-    return new HeaderStream(this, opts)
-  }
-
-  createBlockStream (opts) {
-    return new BlockStream(this, opts)
-  }
-
-  createTransactionStream (opts) {
-    var blocks = new BlockStream(this, opts)
-    var txs = pumpify(blocks, TransactionStream())
-    txs.blocks = blocks
-    return txs
   }
 
   getBlocks (hashes, opts, cb) {
