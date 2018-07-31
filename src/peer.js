@@ -24,15 +24,21 @@ var INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
 var MIN_TIMEOUT = 2000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
-  'NODE_NETWORK': 1,
-  'NODE_BLOOM': 1 << 2
+  'NODE_NETWORK': 0,
+  'NODE_GETUTXO': 1
+  'NODE_BLOOM': 2,
+  'NODE_WITNESS': 3,
+  'NODE_NETWORK_LIMITED': 10
 }
 function getServices (buf) {
   var services = {}
-  var lower = buf.readUInt32LE(0)
   for (var name in serviceBits) {
-    var bit = serviceBits[name]
-    if (lower & bit) services[name] = true
+    var byteIndex = Math.floor(serviceBits[name] / 8)
+    var byte = buf.readUInt32LE(byteIndex)
+    var bitIndex = serviceBits[name] % 8
+    if (byte & bitIndex) {
+      services[name] = true
+    }
   }
   return services
 }
