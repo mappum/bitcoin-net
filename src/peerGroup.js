@@ -326,6 +326,7 @@ class PeerGroup extends EventEmitter {
   // and retries on another peer if it times out
   _request (method, ...args) {
     var cb = args.pop()
+    while (!cb) cb = args.pop()
     var peer = this.randomPeer()
     args.push((err, res) => {
       if (this.closed) return
