@@ -25,7 +25,7 @@ var MIN_TIMEOUT = 2000 // lower bound for timeouts (in case latency is low)
 
 var serviceBits = {
   'NODE_NETWORK': 0,
-  'NODE_GETUTXO': 1
+  'NODE_GETUTXO': 1,
   'NODE_BLOOM': 2,
   'NODE_WITNESS': 3,
   'NODE_NETWORK_LIMITED': 10
@@ -36,7 +36,7 @@ function getServices (buf) {
     var byteIndex = Math.floor(serviceBits[name] / 8)
     var byte = buf.readUInt32LE(byteIndex)
     var bitIndex = serviceBits[name] % 8
-    if (byte & bitIndex) {
+    if (byte & (1 << bitIndex)) {
       services[name] = true
     }
   }
@@ -108,6 +108,10 @@ class Peer extends EventEmitter {
     }
 
     var decoder = proto.createDecodeStream(protocolOpts)
+    decoder.on('error', (err) => {
+      console.log('decode error!!!!', err)
+      process.exit(1)
+    })
     this._decoder = debugStream(debug.rx)
     socket.pipe(decoder).pipe(this._decoder)
 
