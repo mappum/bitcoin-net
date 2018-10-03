@@ -1,29 +1,29 @@
 'use strict'
 
-var crypto = require('crypto')
-var Debug = require('debug')
-var debug = Debug('bitcoin-net:peer')
+const crypto = require('crypto')
+const Debug = require('debug')
+const debug = Debug('bitcoin-net:peer')
 debug.rx = Debug('bitcoin-net:messages:rx')
 debug.tx = Debug('bitcoin-net:messages:tx')
-var proto = require('bitcoin-protocol')
-var INV = proto.constants.inventory
-var u = require('bitcoin-util')
-var wrapEvents = require('event-cleanup')
-var through = require('through2').obj
-var EventEmitter = require('events')
-var pkg = require('../package.json')
-var utils = require('./utils.js')
+const proto = require('bitcoin-protocol')
+const INV = proto.constants.inventory
+const u = require('bitcoin-util')
+const wrapEvents = require('event-cleanup')
+const through = require('through2').obj
+const EventEmitter = require('events')
+const pkg = require('../package.json')
+const utils = require('./utils.js')
 
-var SERVICES_SPV = new Buffer('0000000000000000', 'hex')
-var SERVICES_FULL = new Buffer('0100000000000000', 'hex')
-var BLOOMSERVICE_VERSION = 70011
+const SERVICES_SPV = Buffer.from('0000000000000000', 'hex')
+const SERVICES_FULL = Buffer.from('0100000000000000', 'hex')
+const BLOOMSERVICE_VERSION = 70011
 
-var LATENCY_EXP = 0.5 // coefficient used for latency exponential average
-var INITIAL_PING_N = 4 // send this many pings when we first connect
-var INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
-var MIN_TIMEOUT = 2000 // lower bound for timeouts (in case latency is low)
+const LATENCY_EXP = 0.5 // coefficient used for latency exponential average
+const INITIAL_PING_N = 4 // send this many pings when we first connect
+const INITIAL_PING_INTERVAL = 250 // wait this many ms between initial pings
+const MIN_TIMEOUT = 4000 // lower bound for timeouts (in case latency is low)
 
-var serviceBits = {
+const serviceBits = {
   'NODE_NETWORK': 0,
   'NODE_GETUTXO': 1,
   'NODE_BLOOM': 2,
@@ -31,11 +31,11 @@ var serviceBits = {
   'NODE_NETWORK_LIMITED': 10
 }
 function getServices (buf) {
-  var services = {}
-  for (var name in serviceBits) {
-    var byteIndex = Math.floor(serviceBits[name] / 8)
-    var byte = buf.readUInt32LE(byteIndex)
-    var bitIndex = serviceBits[name] % 8
+  let services = {}
+  for (let name in serviceBits) {
+    let byteIndex = Math.floor(serviceBits[name] / 8)
+    let byte = buf.readUInt32LE(byteIndex)
+    let bitIndex = serviceBits[name] % 8
     if (byte & (1 << bitIndex)) {
       services[name] = true
     }
@@ -43,7 +43,7 @@ function getServices (buf) {
   return services
 }
 
-var debugStream = (f) => through((message, enc, cb) => {
+const debugStream = (f) => through((message, enc, cb) => {
   f(message)
   cb(null, message)
 })

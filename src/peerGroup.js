@@ -1,22 +1,22 @@
 'use strict'
 
-var debug = require('debug')('bitcoin-net:peergroup')
-var dns = require('dns')
-var EventEmitter = require('events')
-try { var net = require('net') } catch (err) {}
-var ws = require('websocket-stream')
-var http = require('http')
-var Exchange = require('peer-exchange')
-var getBrowserRTC = require('get-browser-rtc')
-var once = require('once')
-var pumpify = require('pumpify').obj
-var assign = require('object-assign')
-var old = require('old')
-var Peer = require('./peer.js')
-var utils = require('./utils.js')
+const debug = require('debug')('bitcoin-net:peergroup')
+const dns = require('dns')
+const EventEmitter = require('events')
+let net
+try { net = require('net') } catch (err) {}
+const ws = require('websocket-stream')
+const http = require('http')
+const Exchange = require('peer-exchange')
+const getBrowserRTC = require('get-browser-rtc')
+const once = require('once')
+const assign = require('object-assign')
+const old = require('old')
+const Peer = require('./peer.js')
+const utils = require('./utils.js')
 require('setimmediate')
 
-var DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
+const DEFAULT_PXP_PORT = 8192 // default port for peer-exchange nodes
 
 class PeerGroup extends EventEmitter {
   constructor (params, opts) {
@@ -35,14 +35,14 @@ class PeerGroup extends EventEmitter {
     this.peerOpts = opts.peerOpts != null
       ? opts.peerOpts : {}
     this.acceptIncoming = opts.acceptIncoming
-    var acceptIncoming = this.acceptIncoming
+    let acceptIncoming = this.acceptIncoming
     this.connecting = false
     this.closed = false
     this.accepting = false
 
     if (this._connectWeb) {
-      var wrtc = opts.wrtc || getBrowserRTC()
-      var envSeeds = process.env.WEB_SEED
+      let wrtc = opts.wrtc || getBrowserRTC()
+      let envSeeds = process.env.WEB_SEED
         ? process.env.WEB_SEED.split(',').map((s) => s.trim()) : []
       this._webSeeds = this._params.webSeeds.concat(envSeeds)
       try {
@@ -88,9 +88,9 @@ class PeerGroup extends EventEmitter {
       return
     }
     if (this.closed) return socket.destroy()
-    var opts = assign({ socket }, this.peerOpts)
-    var peer = new Peer(this._params, opts)
-    var onError = (err) => {
+    let opts = assign({ socket }, this.peerOpts)
+    let peer = new Peer(this._params, opts)
+    let onError = (err) => {
       err = err || new Error('Connection error')
       debug(`peer connection error: ${err.message}`)
       peer.removeListener('disconnect', onError)
@@ -111,7 +111,7 @@ class PeerGroup extends EventEmitter {
   _connectPeer (cb) {
     cb = cb || this._onConnection.bind(this)
     if (this.closed) return
-    var getPeerArray = []
+    let getPeerArray = []
     if (!process.browser) {
       if (this._params.dnsSeeds && this._params.dnsSeeds.length > 0) {
         getPeerArray.push(this._connectDNSPeer.bind(this))
@@ -137,7 +137,7 @@ class PeerGroup extends EventEmitter {
       return this._onConnection(
         new Error('No methods available to get new peers'))
     }
-    var getPeer = utils.getRandom(getPeerArray)
+    let getPeer = utils.getRandom(getPeerArray)
     debug(`_connectPeer: getPeer = ${getPeer.name}`)
     getPeer(cb)
   }
@@ -145,29 +145,30 @@ class PeerGroup extends EventEmitter {
   // connects to a random TCP peer via a random DNS seed
   // (selected from `dnsSeeds` in the params)
   _connectDNSPeer (cb) {
-    var seeds = this._params.dnsSeeds
-    var seed = utils.getRandom(seeds)
+    let seeds = this._params.dnsSeeds
+    let seed = utils.getRandom(seeds)
     dns.resolve(seed, (err, addresses) => {
       if (err) return cb(err)
-      var address = utils.getRandom(addresses)
+      let address = utils.getRandom(addresses)
       this._connectTCP(address, this._params.defaultPort, cb)
     })
   }
 
   // connects to a random TCP peer from `staticPeers` in the params
   _connectStaticPeer (cb) {
-    var peers = this._params.staticPeers
-    var address = utils.getRandom(peers)
-    var peer = utils.parseAddress(address)
+    let peers = this._params.staticPeers
+    let address = utils.getRandom(peers)
+    let peer = utils.parseAddress(address)
     this._connectTCP(peer.hostname, peer.port || this._params.defaultPort, cb)
   }
 
   // connects to a standard protocol TCP peer
   _connectTCP (host, port, cb) {
     debug(`_connectTCP: tcp://${host}:${port}`)
-    var socket = net.connect(port, host)
+    let socket = net.connect(port, host)
+    let timeout
     if (this.connectTimeout) {
-      var timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         socket.destroy()
         cb(new Error('Connection timed out'))
       }, this.connectTimeout)
@@ -186,7 +187,7 @@ class PeerGroup extends EventEmitter {
   _connectWebSeeds () {
     this._webSeeds.forEach((seed) => {
       debug(`connecting to web seed: ${JSON.stringify(seed, null, '  ')}`)
-      var socket = ws(seed)
+      let socket = ws(seed)
       socket.on('error', (err) => this._error(err))
       this._exchange.connect(socket, (err, peer) => {
         if (err) {
@@ -210,16 +211,16 @@ class PeerGroup extends EventEmitter {
 
     // TODO: smarter peer logic (ensure we don't have too many peers from the
     // same seed, or the same IP block)
-    var n = this._numPeers - this.peers.length
+    let n = this._numPeers - this.peers.length
     debug(`_fillPeers: n = ${n}, numPeers = ${this._numPeers}, peers.length = ${this.peers.length}`)
-    for (var i = 0; i < n; i++) this._connectPeer()
+    for (let i = 0; i < n; i++) this._connectPeer()
   }
 
   // sends a message to all peers
   send (command, payload, assert) {
     assert = assert != null ? assert : true
     if (assert) this._assertPeers()
-    for (var peer of this.peers) {
+    for (let peer of this.peers) {
       peer.send(command, payload)
     }
   }
@@ -250,8 +251,8 @@ class PeerGroup extends EventEmitter {
     debug(`close called: peers.length = ${this.peers.length}`)
     this.closed = true
     if (this.peers.length === 0) return cb(null)
-    var peers = this.peers.slice(0)
-    for (var peer of peers) {
+    let peers = this.peers.slice(0)
+    for (let peer of peers) {
       peer.once('disconnect', () => {
         if (this.peers.length === 0) cb(null)
       })
@@ -263,7 +264,7 @@ class PeerGroup extends EventEmitter {
     if (process.browser) return cb(null)
     if (!port) port = DEFAULT_PXP_PORT
     this.websocketPort = port
-    var server = http.createServer()
+    let server = http.createServer()
     ws.createServer({ server }, (stream) => {
       this._exchange.accept(stream)
     })
@@ -279,18 +280,18 @@ class PeerGroup extends EventEmitter {
     debug(`add peer: peers.length = ${this.peers.length}`)
 
     if (this._hardLimit && this.peers.length > this._numPeers) {
-      var disconnectPeer = this.peers.shift()
+      let disconnectPeer = this.peers.shift()
       disconnectPeer.disconnect(new Error('PeerGroup over limit'))
     }
 
-    var onMessage = (message) => {
+    let onMessage = (message) => {
       this.emit('message', message, peer)
       this.emit(message.command, message.payload, peer)
     }
     peer.on('message', onMessage)
 
     peer.once('disconnect', (err) => {
-      var index = this.peers.indexOf(peer)
+      let index = this.peers.indexOf(peer)
       this.peers.splice(index, 1)
       peer.removeListener('message', onMessage)
       debug(`peer disconnect, peer.length = ${this.peers.length}, reason=${err}\n${err.stack}`)
@@ -325,9 +326,9 @@ class PeerGroup extends EventEmitter {
   // calls a method on a random peer,
   // and retries on another peer if it times out
   _request (method, ...args) {
-    var cb = args.pop()
+    let cb = args.pop()
     while (!cb) cb = args.pop()
-    var peer = this.randomPeer()
+    let peer = this.randomPeer()
     args.push((err, res) => {
       if (this.closed) return
       if (err && err.timeout) {
