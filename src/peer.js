@@ -108,10 +108,7 @@ class Peer extends EventEmitter {
     }
 
     var decoder = proto.createDecodeStream(protocolOpts)
-    decoder.on('error', (err) => {
-      console.log('decode error!!!!', err)
-      process.exit(1)
-    })
+    decoder.on('error', this._error.bind(this))
     this._decoder = debugStream(debug.rx)
     socket.pipe(decoder).pipe(this._decoder)
 
