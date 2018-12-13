@@ -4,9 +4,10 @@ install: true
 script: ./test/travis.sh
 env:
   matrix:
-  - NODE=6
-  - NODE=5
-  - NODE=4
+  - NODE=8
+  - NODE=9
+  - NODE=10
+  - NODE=11
   - BROWSER=chrome
   - BROWSER=firefox
   - BROWSER=safari

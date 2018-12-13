@@ -61,13 +61,13 @@ class PeerGroup extends EventEmitter {
     }
 
     this.on('block', (block) => {
-      this.emit(`block:${block.header.getHash().toString('base64')}`, block)
+      this.emit(`block:${utils.getBlockHash(block.header).toString('base64')}`, block)
     })
     this.on('merkleblock', (block) => {
-      this.emit(`merkleblock:${block.header.getHash().toString('base64')}`, block)
+      this.emit(`merkleblock:${utils.getBlockHash(block.header).toString('base64')}`, block)
     })
     this.on('tx', (tx) => {
-      this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
+      this.emit(`tx:${utils.getTxHash(tx).toString('base64')}`, tx)
     })
     this.once('peer', () => this.emit('connect'))
   }
@@ -91,7 +91,7 @@ class PeerGroup extends EventEmitter {
     let opts = assign({ socket }, this.peerOpts)
     let peer = new Peer(this._params, opts)
     let onError = (err) => {
-      err = err || new Error('Connection error')
+      err = err || Error('Connection error')
       debug(`peer connection error: ${err.message}`)
       peer.removeListener('disconnect', onError)
       this.emit('connectError', err, peer)
@@ -135,7 +135,7 @@ class PeerGroup extends EventEmitter {
         }, this.connectTimeout)
       }
       return this._onConnection(
-        new Error('No methods available to get new peers'))
+        Error('No methods available to get new peers'))
     }
     let getPeer = utils.getRandom(getPeerArray)
     debug(`_connectPeer: getPeer = ${getPeer.name}`)
@@ -170,7 +170,7 @@ class PeerGroup extends EventEmitter {
     if (this.connectTimeout) {
       timeout = setTimeout(() => {
         socket.destroy()
-        cb(new Error('Connection timed out'))
+        cb(Error('Connection timed out'))
       }, this.connectTimeout)
     }
     socket.once('error', cb)
@@ -202,7 +202,7 @@ class PeerGroup extends EventEmitter {
 
   _assertPeers () {
     if (this.peers.length === 0) {
-      throw new Error('Not connected to any peers')
+      throw Error('Not connected to any peers')
     }
   }
 
@@ -256,7 +256,7 @@ class PeerGroup extends EventEmitter {
       peer.once('disconnect', () => {
         if (this.peers.length === 0) cb(null)
       })
-      peer.disconnect(new Error('PeerGroup closing'))
+      peer.disconnect(Error('PeerGroup closing'))
     }
   }
 
@@ -274,14 +274,14 @@ class PeerGroup extends EventEmitter {
 
   // manually adds a Peer
   addPeer (peer) {
-    if (this.closed) throw new Error('Cannot add peers, PeerGroup is closed')
+    if (this.closed) throw Error('Cannot add peers, PeerGroup is closed')
 
     this.peers.push(peer)
     debug(`add peer: peers.length = ${this.peers.length}`)
 
     if (this._hardLimit && this.peers.length > this._numPeers) {
       let disconnectPeer = this.peers.shift()
-      disconnectPeer.disconnect(new Error('PeerGroup over limit'))
+      disconnectPeer.disconnect(Error('PeerGroup over limit'))
     }
 
     let onMessage = (message) => {

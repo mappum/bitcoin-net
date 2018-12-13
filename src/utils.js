@@ -1,4 +1,8 @@
-var url = require('url')
+const url = require('url')
+const encodeHeader = require('bitcoin-protocol').types.header.encode
+const encodeTx = require('bitcoin-protocol').types.transaction.encode
+// TODO: create-hash package
+const { createHash } = require('crypto')
 
 function getRandom (array) {
   return array[Math.floor(Math.random() * array.length)]
@@ -20,4 +24,25 @@ function assertParams (params) {
   }
 }
 
-module.exports = { getRandom, parseAddress, assertParams }
+function sha256 (data) {
+  return createHash('sha256').update(data).digest()
+}
+
+function getBlockHash (header) {
+  let headerBytes = encodeHeader(header)
+  return sha256(sha256(headerBytes))
+}
+
+function getTxHash (tx) {
+  let txBytes = encodeTx(tx)
+  return sha256(sha256(txBytes))
+}
+
+module.exports = {
+  getRandom,
+  parseAddress,
+  assertParams,
+  getBlockHash,
+  getTxHash,
+  sha256
+}

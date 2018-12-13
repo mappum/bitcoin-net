@@ -187,13 +187,13 @@ class Peer extends EventEmitter {
     this.on('ping', (message) => this.send('pong', message))
 
     this.on('block', (block) => {
-      this.emit(`block:${block.header.getHash().toString('base64')}`, block)
+      this.emit(`block:${utils.getBlockHash(block.header).toString('base64')}`, block)
     })
     this.on('merkleblock', (block) => {
-      this.emit(`merkleblock:${block.header.getHash().toString('base64')}`, block)
+      this.emit(`merkleblock:${utils.getBlockHash(block.header).toString('base64')}`, block)
     })
     this.on('tx', (tx) => {
-      this.emit(`tx:${tx.getHash().toString('base64')}`, tx)
+      this.emit(`tx:${utils.getTxHash(tx).toString('base64')}`, tx)
     })
   }
 
@@ -311,7 +311,7 @@ class Peer extends EventEmitter {
       this.getBlocks([ blockHash ], opts, (err, blocks) => {
         if (err) return cb(err)
         for (var tx of blocks[0].transactions) {
-          var id = tx.getHash().toString('base64')
+          var id = utils.getTxHash(tx).toString('base64')
           var i = txIndex[id]
           if (i == null) continue
           delete txIndex[id]

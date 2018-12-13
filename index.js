@@ -1,4 +1,4 @@
 module.exports = {
-  Peer: require('./lib/peer.js'),
-  PeerGroup: require('./lib/peerGroup.js')
+  Peer: require('./src/peer.js'),
+  PeerGroup: require('./src/peerGroup.js')
 }

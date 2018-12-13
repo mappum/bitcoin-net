@@ -1,14 +1,13 @@
-var tape = require('tape')
-var params = require('webcoin-bitcoin')
-var u = require('bitcoin-util')
-var Block = require('bitcoinjs-lib').Block
-var Blockchain = require('blockchain-spv')
-var levelup = require('levelup')
-var memdown = require('memdown')
-var to = require('flush-write-stream').obj
-var { HeaderStream, BlockStream } = require('blockchain-download')
-var PeerGroup = require('../../').PeerGroup
-var wrtc = require('wrtc')
+'use strict'
+
+const tape = require('tape')
+const params = require('webcoin-bitcoin')
+const Blockchain = require('blockchain-spv')
+const levelup = require('levelup')
+const memdown = require('memdown')
+const PeerGroup = require('../').PeerGroup
+const wrtc = require('wrtc')
+const { getTxHash } = require('../src/utils.js')
 
 var test = (name, opts, f) => {
   if (typeof opts === 'function') {
@@ -103,17 +102,16 @@ test('peer methods', (t) => {
   })
 
   t.test('getBlocks', (t) => {
-    var hash = new Buffer('6a4690e6ba50e286b8c63c826399a6ac73be3f479f17406cdf90468700000000', 'hex')
+    var hash = Buffer.from('6a4690e6ba50e286b8c63c826399a6ac73be3f479f17406cdf90468700000000', 'hex')
     pg.getBlocks([ hash ], (err, res) => {
       t.pass('callback called')
       t.error(err, 'no error')
       t.ok(Array.isArray(res), 'result is array')
       t.equal(res.length, 1, 'result is correct length')
-      t.ok(res[0].header instanceof Block, 'result has header of type Block')
       t.equal(res[0].header.nonce, 1766761990, 'header has correct nonce')
       t.ok(Array.isArray(res[0].transactions), 'result has transactions array')
       t.equal(res[0].transactions.length, 1, 'transactions array is correct length')
-      t.equal(res[0].transactions[0].getId(), '3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868', 'transaction has correct hash')
+      t.true(getTxHash(res[0].transactions[0]).equals(Buffer.from('3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868', 'hex').reverse()), 'transaction has correct hash')
       t.end()
     })
   })
@@ -123,70 +121,6 @@ test('peer methods', (t) => {
     var db = levelup('chain', { db: memdown })
     chain = new Blockchain(params.blockchain, db, { ignoreCheckpoints: true })
     chain.once('ready', () => t.end())
-  })
-
-  t.test('createHeaderStream', (t) => {
-    var expectedHeaders = [
-      {
-        first: '00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048',
-        last: '00000000dfd5d65c9d8561b4b8f60a63018fe3933ecb131fb37f905f87da951a'
-      },
-      {
-        first: '0000000067217a46c49054bad67cda2da943607d326e89896786de10b07cb7c0',
-        last: '00000000922e2aa9e84a474350a3555f49f06061fd49df50a9352f156692a842'
-      },
-      {
-        first: '00000000a86f68e8de06c6b46623fdd16b7a11ad9651fa48ecbe8c731658dc06',
-        last: '00000000dbbb79792303bdd1c6c4d7ab9c21bba0667213c2eca955e11230c5a5'
-      },
-      {
-        first: '0000000055fcaf04cb9a82bb86b46a21b15fcaa75ac8c18679b0234f79c4c615',
-        last: '0000000094fbacdffec05aea9847000522a258c269ae37a74a818afb96fc27d9'
-      }
-    ]
-    var start = u.toHash('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f')
-    var stop = u.toHash('0000000094fbacdffec05aea9847000522a258c269ae37a74a818afb96fc27d9')
-    var stream = pg.createHeaderStream({ locator: [ start ], stop })
-    t.ok(stream instanceof HeaderStream, 'got HeaderStream')
-    stream.pipe(to((data, enc, cb) => {
-      t.ok(Array.isArray(data), 'data is array')
-      t.equal(data.length, 2000, 'data is correct length')
-      t.ok(data[0] instanceof Block, 'data contains block headers (bitcoinjs Block)')
-      var expected = expectedHeaders.shift()
-      t.ok(expected, 'expecting more data')
-      t.equal(data[0].getId(), expected.first, 'got correct first header')
-      t.equal(data[1999].getId(), expected.last, 'got correct last header')
-      chain.addHeaders(data, (err) => {
-        t.error(err, 'headers add to blockchain')
-        cb()
-      })
-    }, () => t.end()))
-    chain.createLocatorStream().pipe(stream)
-  })
-
-  t.test('createBlockStream', (t) => {
-    var stream = pg.createBlockStream()
-    t.ok(stream instanceof BlockStream, 'got BlockStream')
-    var lastHeight = -1
-    var lastHash = u.nullHash
-    stream.on('data', (data) => {
-      if (lastHeight > 100) return
-      t.equal(typeof data.height, 'number', 'data contains height')
-      t.ok(data.header instanceof Block, 'data contains header (bitcoinjs Block)')
-      t.equal(data.height, lastHeight + 1, 'blocks ordered by height')
-      t.equal(data.header.prevHash.toString('hex'), lastHash.toString('hex'), 'block connects to previous hash')
-      lastHeight++
-      lastHash = data.header.getHash()
-      if (lastHeight === 100) {
-        readStream.once('finish', () => {
-          stream.end()
-        })
-        readStream.end()
-      }
-    })
-    stream.on('end', () => t.end())
-    var readStream = chain.createReadStream()
-    readStream.pipe(stream)
   })
 
   t.end()

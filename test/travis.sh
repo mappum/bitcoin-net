@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ -z $NODE ]; then
-  export NODE=6
+  export NODE=10
 fi
 
 echo Installing nvm...
