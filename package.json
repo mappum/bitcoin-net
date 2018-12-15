@@ -17,7 +17,7 @@
   "author": "Matt Bell <mappum@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "bitcoin-protocol": "^3.0.0",
+    "bitcoin-protocol": "^4.0.1",
     "bitcoin-util": "^2.0.0",
     "debug": "^2.2.0",
     "event-cleanup": "^1.0.3",
