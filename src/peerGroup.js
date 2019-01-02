@@ -24,7 +24,7 @@ class PeerGroup extends EventEmitter {
     super()
     this._params = params
     opts = opts || {}
-    this._numPeers = opts.numPeers || 8
+    this._numPeers = opts.numPeers || 10
     this.peers = []
     this._hardLimit = opts.hardLimit || false
     this.websocketPort = null
@@ -111,6 +111,7 @@ class PeerGroup extends EventEmitter {
   _connectPeer (cb) {
     cb = cb || this._onConnection.bind(this)
     if (this.closed) return
+    if (this.peers.length >= this._numPeers) return
     let getPeerArray = []
     if (!process.browser) {
       if (this._params.dnsSeeds && this._params.dnsSeeds.length > 0) {
