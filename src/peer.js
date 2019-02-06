@@ -14,7 +14,7 @@ const EventEmitter = require('events')
 const pkg = require('../package.json')
 const utils = require('./utils.js')
 
-const SERVICES_SPV = Buffer.from('0000000000000000', 'hex')
+const SERVICES_SPV = Buffer.from('0800000000000000', 'hex')
 const SERVICES_FULL = Buffer.from('0100000000000000', 'hex')
 const BLOOMSERVICE_VERSION = 70011
 
